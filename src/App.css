@@ -1,9 +1,9 @@
 /* src/App.css */
 .App {
   display: flex;
-  flex-direction: column; /* Stack FrameBar, Toolbar, Canvas vertically */
-  align-items: center; /* Center content horizontally */
-  min-height: 100vh;
-  background-color: #d3d3d3; /* A slightly darker overall background */
-  padding-top: 20px; /* Some space at the top */
+  flex-direction: column;
+  height: 100vh; /* Full viewport height */
+  width: 100vw; /* Full viewport width */
+  overflow: hidden; /* Prevent scrollbars on the App container itself */
+  background-color: #e9ecef; /* A light background for the page */
 }

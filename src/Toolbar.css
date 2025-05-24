@@ -2,22 +2,39 @@
 .toolbar-container {
   background-color: #ffffff;
   padding: 10px 15px;
-  border-radius: 8px;
+  border-radius: 8px; /* Rounded edges */
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   display: flex;
-  gap: 10px; /* Spacing between buttons */
-  margin-bottom: 20px; /* Space between toolbar and canvas */
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+  gap: 10px;
+  margin: 10px; /* Add some margin around the toolbar */
+  flex-shrink: 0; /* Prevent toolbar from shrinking when canvas grows */
 }
 
 .tool-button {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #f9f9f9;
+  display: flex; /* For aligning icon and text */
+  align-items: center; /* Vertically center icon and text */
+  gap: 8px; /* Space between icon and text */
+  padding: 8px 15px; /* Adjusted padding */
+  border: 1px solid #ced4da;
+  border-radius: 6px; /* Slightly rounded edges for buttons */
+  background-color: #f8f9fa;
   cursor: pointer;
   font-size: 14px;
+  color: #495057;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 
 .tool-button:hover {
-  background-color: #e0e0e0;
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.tool-button:active {
+  background-color: #dee2e6;
+}
+
+.tool-icon {
+  /* Icon specific styles if needed, lucide icons are generally well-behaved */
+  stroke-width: 2; /* Adjust icon stroke thickness if desired */
 }

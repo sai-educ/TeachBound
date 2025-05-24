@@ -2,7 +2,7 @@
 
 **An intuitive, web-based whiteboard for real-time brainstorming, collaborative ideation, and visual learning. Inspired by Google Jamboard.**
 
-**Slogan:** 100% free to use, no advertisements, open source. Pull requests are warmly welcome!
+100% free to use, no advertisements, open source. Pull requests are warmly welcome!
 
 ---
 

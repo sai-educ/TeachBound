@@ -1,8 +1,10 @@
 # EduBoard: An Interactive Digital Whiteboard
 
-**An intuitive, web-based whiteboard for real-time brainstorming, collaborative ideation, and visual learning. Inspired by Google Jamboard.**
+**An intuitive, web-based whiteboard for brainstorming, ideation, and visual learning. Inspired by Google Jamboard.**
 
-**Slogan:** 100% free to use, no advertisements, open source. Pull requests are warmly welcome!
+EduBoard is 100% free to use, features no advertisements, and is fully open source. Pull requests are warmly welcome!
+
+*Currently, EduBoard supports single-user functionality. Multi-user collaboration is a planned future enhancement.*
 
 ---
 
@@ -68,9 +70,7 @@ We aim to maintain a welcoming and inclusive environment for all contributors.
 
 EduBoard is developed and maintained by:
 
-**Sai Gattupalli**
-College of Education
-University of Massachusetts Amherst
+Sai Gattupalli, College of Education, University of Massachusetts Amherst.
 
 This project benefits from the rich ecosystem of open-source software and aims to contribute back to that community.
 
@@ -89,6 +89,19 @@ Stay tuned for updates!
 
 ## License
 
-This project is currently unlicensed, but we are considering adopting a permissive open-source license such as MIT. (You can replace this with `This project is licensed under the MIT License.` if you choose to add one).
+EduBoard is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)**.
+
+This means you are free to:
+
+* **Share** — copy and redistribute the material in any medium or format.
+* **Adapt** — remix, transform, and build upon the material.
+
+Under the following terms:
+
+* **Attribution** — You must give appropriate credit to Sai Gattupalli (College of Education, University of Massachusetts Amherst), provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests endorsement of you or your use.
+* **NonCommercial** — You may not use the material for commercial purposes.
+
+For the full legal code and more details, please visit:
+[http://creativecommons.org/licenses/by-nc/4.0/](http://creativecommons.org/licenses/by-nc/4.0/)
 
 ---

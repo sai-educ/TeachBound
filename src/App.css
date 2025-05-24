@@ -50,14 +50,3 @@
   border-radius: 3px; /* Match visual style if sticky notes are rounded */
 }
 
-/* src/App.css - Add this at the end or in an appropriate section */
-
-.slogan-link {
-  color: #007bff; /* Example: A blue link color */
-  text-decoration: underline;
-}
-
-.slogan-link:hover {
-  color: #0056b3; /* Darker blue on hover */
-  text-decoration: none;
-}

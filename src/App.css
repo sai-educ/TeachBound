@@ -2,8 +2,18 @@
 .App {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Full viewport height */
-  width: 100vw; /* Full viewport width */
-  overflow: hidden; /* Prevent scrollbars on the App container itself */
-  background-color: #e9ecef; /* A light background for the page */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: #e9ecef;
+  padding-top: 60px; /* Add padding for the fixed TopMenu */
 }
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Download button container was removed from here, moved to TopMenu */

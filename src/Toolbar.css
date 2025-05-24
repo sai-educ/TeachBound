@@ -1,23 +1,48 @@
 /* src/Toolbar.css */
 .toolbar-container {
   background-color: #ffffff;
-  padding: 10px 15px;
-  border-radius: 8px; /* Rounded edges */
+  padding: 8px 12px; /* Slightly reduced padding */
+  border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   display: flex;
-  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
-  gap: 10px;
-  margin: 10px; /* Add some margin around the toolbar */
-  flex-shrink: 0; /* Prevent toolbar from shrinking when canvas grows */
+  flex-wrap: wrap;
+  gap: 10px; /* Reduced gap between groups */
+  margin: 0 10px 10px 10px; /* Margin only on sides and bottom */
+  align-items: center;
+  flex-shrink: 0;
 }
 
+.tool-selection,
+.tool-options-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.options-label {
+  font-size: 13px;
+  color: #555;
+  margin-right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.separator {
+  width: 1px;
+  height: 28px; /* Adjust height to match button group */
+  background-color: #dee2e6;
+  margin: 0 5px; /* Spacing around separator */
+}
+
+
 .tool-button {
-  display: flex; /* For aligning icon and text */
-  align-items: center; /* Vertically center icon and text */
-  gap: 8px; /* Space between icon and text */
-  padding: 8px 15px; /* Adjusted padding */
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Reduced gap */
+  padding: 6px 10px; /* Reduced padding */
   border: 1px solid #ced4da;
-  border-radius: 6px; /* Slightly rounded edges for buttons */
+  border-radius: 6px;
   background-color: #f8f9fa;
   cursor: pointer;
   font-size: 14px;
@@ -25,16 +50,57 @@
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 
-.tool-button:hover {
+.tool-button:hover:not(.active) {
   background-color: #e9ecef;
   border-color: #adb5bd;
 }
 
-.tool-button:active {
-  background-color: #dee2e6;
+.tool-button.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #0056b3;
+}
+
+.tool-button.active .tool-icon {
+  stroke: white;
 }
 
 .tool-icon {
-  /* Icon specific styles if needed, lucide icons are generally well-behaved */
-  stroke-width: 2; /* Adjust icon stroke thickness if desired */
+  stroke-width: 2;
+}
+
+.color-palette {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.color-button {
+  width: 22px; /* Slightly smaller */
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.color-button:hover {
+  transform: scale(1.1);
+}
+
+.color-button.active {
+  border-color: #333; /* Darker border for active color */
+  box-shadow: 0 0 0 2px white, 0 0 0 3px #333;
+}
+
+.line-width-selection {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.line-width-button { /* Re-use tool-button styles but can be specific */
+  min-width: 36px; /* Ensure buttons have some width */
+  justify-content: center;
 }

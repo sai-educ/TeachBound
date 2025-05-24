@@ -1,23 +1,16 @@
-import logo from './logo.svg';
+// src/App.js
+import React from 'react';
 import './App.css';
+import Toolbar from './Toolbar';
+import Canvas from './Canvas';
+// import FrameBar from './FrameBar'; // We'll use this later
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      {/* <FrameBar /> */} {/* You can add this at the top or bottom later */}
+      <Toolbar />
+      <Canvas />
     </div>
   );
 }

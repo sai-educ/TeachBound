@@ -1,0 +1,16 @@
+/* src/Canvas.css */
+.canvas-container {
+  /* If you want the canvas to have a specific container size or shadow */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#main-canvas {
+  /* The canvas itself gets a border from the JS for now, 
+     but you might want other styles like cursor here later */
+  background-color: #ffffff; /* Default background if not filled by JS */
+  /*
+  If you set width/height via CSS here, it can stretch the drawing.
+  It's generally better to set canvas.width and canvas.height directly in JavaScript
+  for the drawing surface dimensions.
+  */
+}

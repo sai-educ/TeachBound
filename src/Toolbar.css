@@ -1,19 +1,34 @@
 /* src/Toolbar.css */
-.toolbar-container {
-  background-color: #ffffff;
-  padding: 8px 12px; /* Slightly reduced padding */
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+.toolbar-wrapper {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px; /* Reduced gap between groups */
-  margin: 0 10px 10px 10px; /* Margin only on sides and bottom */
-  align-items: center;
+  flex-direction: column; /* Stack tool sections vertically */
+  background-color: #ffffff;
+  padding: 8px;
+  margin: 10px; /* Margin around the entire toolbar area */
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
-.tool-selection,
-.tool-options-group {
+.toolbar-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px; /* Gap between groups within a section */
+  padding: 5px 0; /* Padding for each section */
+}
+
+.toolbar-section:not(:last-child) {
+  border-bottom: 1px solid #e0e0e0; /* Separator line between sections */
+  margin-bottom: 5px;
+  padding-bottom: 10px;
+}
+
+.action-tools-section {
+ justify-content: flex-start; /* Align action buttons to the start */
+}
+
+.tool-group {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -30,40 +45,49 @@
 
 .separator {
   width: 1px;
-  height: 28px; /* Adjust height to match button group */
+  height: 28px;
   background-color: #dee2e6;
-  margin: 0 5px; /* Spacing around separator */
+  margin: 0 8px; /* More spacing for separator */
 }
-
 
 .tool-button {
   display: flex;
   align-items: center;
-  gap: 6px; /* Reduced gap */
-  padding: 6px 10px; /* Reduced padding */
-  border: 1px solid #ced4da;
+  gap: 6px;
+  padding: 7px 12px; /* Consistent padding */
+  border: 1px solid #d1d5db; /* Tailwind gray-300 */
   border-radius: 6px;
-  background-color: #f8f9fa;
+  background-color: #f9fafb; /* Tailwind gray-50 */
   cursor: pointer;
   font-size: 14px;
-  color: #495057;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  color: #374151; /* Tailwind gray-700 */
+  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
-
-.tool-button:hover:not(.active) {
-  background-color: #e9ecef;
-  border-color: #adb5bd;
+.tool-button:not(:disabled):hover {
+  background-color: #f3f4f6; /* Tailwind gray-100 */
+  border-color: #9ca3af; /* Tailwind gray-400 */
 }
-
 .tool-button.active {
-  background-color: #007bff;
+  background-color: #3b82f6; /* Tailwind blue-500 */
   color: white;
-  border-color: #0056b3;
+  border-color: #2563eb; /* Tailwind blue-600 */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
-
 .tool-button.active .tool-icon {
   stroke: white;
 }
+.tool-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-button { /* Specific styling for action buttons if needed, e.g., less prominent */
+  background-color: #fff;
+}
+.action-button:not(:disabled):hover {
+  background-color: #f3f4f6;
+}
+
 
 .tool-icon {
   stroke-width: 2;
@@ -72,26 +96,25 @@
 .color-palette {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px; /* Slightly more gap */
 }
 
 .color-button {
-  width: 22px; /* Slightly smaller */
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: 2px solid #e5e7eb; /* Tailwind gray-200 or transparent */
   cursor: pointer;
   transition: border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-
 .color-button:hover {
   transform: scale(1.1);
+  border-color: #9ca3af;
 }
-
 .color-button.active {
-  border-color: #333; /* Darker border for active color */
-  box-shadow: 0 0 0 2px white, 0 0 0 3px #333;
+  border-color: #3b82f6; /* Tailwind blue-500 */
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
 }
 
 .line-width-selection {
@@ -99,8 +122,11 @@
   align-items: center;
   gap: 5px;
 }
-
-.line-width-button { /* Re-use tool-button styles but can be specific */
-  min-width: 36px; /* Ensure buttons have some width */
+.line-width-button {
+  min-width: 38px;
   justify-content: center;
+  padding: 6px 8px; /* Adjust for visual balance */
+}
+.line-width-button span { /* The visual line indicator */
+    border-radius: 3px !important; /* Ensure it's rounded */
 }

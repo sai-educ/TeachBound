@@ -1,23 +1,20 @@
 /* src/Canvas.css */
-.canvas-container {
-  flex-grow: 1; /* Allow canvas container to take available vertical space */
+.canvas-wrapper { /* New wrapper */
+  flex-grow: 1;
   display: flex; /* To center canvas if it's smaller than container */
   justify-content: center;
   align-items: center;
-  padding: 10px; /* Padding around the canvas */
-  overflow: hidden; /* Ensure canvas doesn't overflow its container */
-  width: 100%; /* Full width of its parent in App.js */
-  height: 100%; /* Will be controlled by flex-grow */
+  padding: 10px;
+  overflow: hidden;
+  width: 100%;
+  position: relative; /* For potential absolute positioning of child elements if needed */
 }
 
 #main-canvas {
-  /* The canvas element itself */
-  background-color: #ffffff; /* White background */
-  border: 1px solid #000000; /* Thin black line/border */
-  border-radius: 8px; /* Slightly rounded edges for the canvas */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1); /* A subtle shadow for depth */
-
-  /* Width and height are set by JavaScript to match the container */
-  /* Do not set fixed width/height here if you want it responsive via JS */
-  display: block; /* Removes extra space below canvas if it's inline */
+  background-color: #ffffff;
+  border: 1px solid #cccccc; /* Lighter border */
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Softer shadow */
+  display: block;
+  /* Width and height are set by JavaScript */
 }

@@ -1,70 +1,94 @@
-# Getting Started with Create React App
+# EduBoard: An Interactive Digital Whiteboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+**An intuitive, web-based whiteboard for real-time brainstorming, collaborative ideation, and visual learning. Inspired by Google Jamboard.**
 
-## Available Scripts
+**Slogan:** 100% free to use, no advertisements, open source. Pull requests are warmly welcome!
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Try EduBoard Live!
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Experience EduBoard directly in your browser:
+**[Live Demo: https://jamboard-clone.vercel.app/](https://jamboard-clone.vercel.app/)**
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Introduction
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+EduBoard is a digital whiteboard application designed to foster creativity, collaboration, and dynamic interaction in educational and professional settings. Whether you're sketching out ideas, organizing thoughts with sticky notes, or annotating concepts, EduBoard provides a flexible and user-friendly canvas for your digital workspace. Our aim is to offer a streamlined and accessible alternative for users seeking a straightforward digital whiteboard experience.
 
-### `npm run build`
+## Purpose and Vision
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+The primary goal of EduBoard is to provide a simple yet effective tool for:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+* **Brainstorming:** Capture and connect ideas visually in a free-form environment.
+* **Visual Collaboration:** (Future Goal) Enable multiple users to work together on the same board in real-time.
+* **Educational Engagement:** Serve as an interactive teaching and learning aid, allowing educators and students to illustrate concepts, solve problems, and share notes dynamically.
+* **Quick Note-Taking & Ideation:** A space to quickly jot down thoughts, create mind maps, or plan projects.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+We envision EduBoard as a community-driven project that evolves to meet the diverse needs of its users, emphasizing ease of use and open accessibility.
 
-### `npm run eject`
+## Current Features
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+EduBoard currently supports the following functionalities:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+* **Drawing Tools:**
+    * **Pen:** Freehand drawing with selectable colors and line widths.
+    * **Eraser:** Erase pen strokes.
+* **Sticky Notes:**
+    * Create digital sticky notes on the canvas.
+    * Add text directly onto the notes.
+    * Move sticky notes around the canvas.
+* **Canvas Management:**
+    * **Undo/Redo:** Step backward or forward through your recent actions.
+    * **Clear Frame:** Erase all content from the canvas.
+    * **Responsive Canvas:** Adapts to your browser window size.
+* **Export:**
+    * **Download as PNG:** Save your current board as a PNG image file.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Getting Started
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+To start using EduBoard, simply visit the live demo link above. The interface is designed to be intuitive:
 
-## Learn More
+1.  **Select a tool** from the toolbar (e.g., Pen, Sticky Note).
+2.  **Interact with the canvas** to draw, add notes, or erase.
+3.  Use the **color palette** and **line width** options to customize your pen.
+4.  Utilize the **action buttons** (Undo, Redo, Clear, Download) as needed.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Development and Contribution
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+EduBoard is an open-source project built with ReactJS. We believe in the power of community collaboration and welcome contributions of all kinds, from bug reports and feature suggestions to code contributions.
 
-### Code Splitting
+* **Source Code:** [Link to your GitHub repository will be here once you push this README]
+* **Pull Requests:** If you'd like to contribute, please feel free to fork the repository and submit a pull request.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+We aim to maintain a welcoming and inclusive environment for all contributors.
 
-### Analyzing the Bundle Size
+## Attribution
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+EduBoard is developed and maintained by:
 
-### Making a Progressive Web App
+**Sai Gattupalli**
+College of Education
+University of Massachusetts Amherst
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+This project benefits from the rich ecosystem of open-source software and aims to contribute back to that community.
 
-### Advanced Configuration
+## Future Enhancements
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+We are continuously thinking about how to improve EduBoard. Some of the features planned for future development include:
 
-### Deployment
+* Real-time multi-user collaboration.
+* Additional drawing tools (e.g., shapes, text boxes, highlighter).
+* Advanced object manipulation (select, resize, rotate).
+* Customizable backgrounds.
+* Frame management (multiple pages).
+* PDF export.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Stay tuned for updates!
 
-### `npm run build` fails to minify
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This project is currently unlicensed, but we are considering adopting a permissive open-source license such as MIT. (You can replace this with `This project is licensed under the MIT License.` if you choose to add one).
+
+---

@@ -1,8 +1,10 @@
 # EduBoard: An Interactive Digital Whiteboard
 
-**An intuitive, web-based whiteboard for real-time brainstorming, collaborative ideation, and visual learning. Inspired by Google Jamboard.**
+**An intuitive, web-based whiteboard for brainstorming, ideation, and visual learning. Inspired by Google Jamboard.**
 
-100% free to use, no advertisements, open source. Pull requests are warmly welcome!
+EduBoard is 100% free to use, features no advertisements, and is fully open source. Pull requests are warmly welcome!
+
+*Currently, EduBoard supports single-user functionality. Multi-user collaboration is a planned future enhancement.*
 
 ---
 

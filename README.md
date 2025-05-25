@@ -14,6 +14,8 @@ Experience EduBoard directly in your browser:
 **[Live Demo: https://jamboard-clone.vercel.app/](https://jamboard-clone.vercel.app/)**
 
 ---
+Screenshot:
+<img width="1295" alt="EduBoard Jamboard Clone" src="https://github.com/user-attachments/assets/8762ef2a-cddf-4781-ad3c-0091f1ec5776" />
 
 ## Introduction
 

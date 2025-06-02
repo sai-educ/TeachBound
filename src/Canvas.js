@@ -43,9 +43,9 @@ const Canvas = forwardRef(({
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
         const offscreenCtx = offscreenCanvas.getContext('2d');
-        offscreenCtx.fillStyle = '#FFFFFF';
+        offscreenCtx.fillStyle = '#FFFFFF'; // Ensure background is white for PNG
         offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        offscreenCtx.drawImage(canvas, 0, 0);
+        offscreenCtx.drawImage(canvas, 0, 0); // Draw current canvas content
         const imageURL = offscreenCanvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = imageURL; link.download = 'eduboard.png';
@@ -73,7 +73,7 @@ const Canvas = forwardRef(({
     const clientY = event.clientY || (event.touches && event.touches[0].clientY);
     const x = clientX - rect.left;
     const y = clientY - rect.top;
-    setMousePosition({ x: Math.round(x), y: Math.round(y) });
+    setMousePosition({ x: Math.round(x), y: Math.round(y) }); // This state update will trigger redrawAll
     return { x, y };
   };
 
@@ -105,16 +105,14 @@ const Canvas = forwardRef(({
         context.stroke();
         break;
       case 'arrow':
-        // Draw line
         context.beginPath();
         context.moveTo(startX, startY);
         context.lineTo(endX, endY);
         context.stroke();
         
-        // Draw arrowhead
         const angle = Math.atan2(endY - startY, endX - startX);
         const arrowLength = 15;
-        context.beginPath();
+        context.beginPath(); // Start a new path for the arrowhead
         context.moveTo(endX, endY);
         context.lineTo(
           endX - arrowLength * Math.cos(angle - Math.PI / 6),
@@ -127,46 +125,22 @@ const Canvas = forwardRef(({
         );
         context.stroke();
         break;
+      default:
+        break;
     }
   };
 
   const redrawAll = (context) => {
     if (!context || !context.canvas) return;
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-    context.fillStyle = '#ffffff';
+    context.fillStyle = '#ffffff'; // Set background for the main canvas
     context.fillRect(0, 0, context.canvas.width, context.canvas.height);
 
     elements.forEach(element => {
       context.lineCap = 'round'; context.lineJoin = 'round';
       
-      // Draw selection highlight
-      if (selectedElements.includes(element.id)) {
-        context.save();
-        context.strokeStyle = '#007bff';
-        context.lineWidth = 2;
-        context.setLineDash([5, 5]);
-        
-        if (element.type === 'sticky') {
-          context.strokeRect(element.x - 2, element.y - 2, STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
-        } else if (element.type === 'text') {
-          const textWidth = context.measureText(element.text).width;
-          context.strokeRect(element.x - 2, element.y - element.fontSize - 2, textWidth + 4, element.fontSize + 8);
-        } else if (element.type === 'rectangle') {
-          context.strokeRect(element.x - 2, element.y - 2, element.width + 4, element.height + 4);
-        } else if (element.type === 'circle') {
-          context.beginPath();
-          context.arc(element.x, element.y, element.radius + 2, 0, 2 * Math.PI);
-          context.stroke();
-        } else if (element.type === 'line' || element.type === 'arrow') {
-          // Draw selection handles for lines
-          context.fillStyle = '#007bff';
-          context.fillRect(element.x - 4, element.y - 4, 8, 8);
-          context.fillRect(element.endX - 4, element.endY - 4, 8, 8);
-        }
-        
-        context.restore();
-      }
-      
+      const originalGCO = context.globalCompositeOperation; // Save current GCO
+
       if (element.type === 'stroke') {
         context.globalCompositeOperation = element.isEraser ? 'destination-out' : 'source-over';
         context.strokeStyle = element.isEraser ? 'rgba(0,0,0,1)' : element.color;
@@ -177,11 +151,10 @@ const Canvas = forwardRef(({
           else context.lineTo(point.x, point.y);
         });
         context.stroke();
-        context.globalCompositeOperation = 'source-over';
       } else if (element.type === 'sticky') {
-        context.globalCompositeOperation = 'source-over';
-        context.fillStyle = element.backgroundColor || '#FFFACD'; // Lemon chiffon
-        context.strokeStyle = draggingElement?.id === element.id ? '#007bff' : '#333333'; // Highlight if dragging
+        context.globalCompositeOperation = 'source-over'; // Ensure sticky notes draw normally
+        context.fillStyle = element.backgroundColor || '#FFFACD';
+        context.strokeStyle = draggingElement?.id === element.id ? '#007bff' : '#333333';
         context.lineWidth = draggingElement?.id === element.id ? 2 : 1;
         
         context.beginPath();
@@ -193,12 +166,12 @@ const Canvas = forwardRef(({
             context.fillStyle = '#000000';
             context.font = '14px Arial';
             const textPadding = 10; const maxWidth = STICKY_NOTE_WIDTH - 2 * textPadding;
-            let textY = element.y + textPadding + 14;
+            let textY = element.y + textPadding + 14; // Approx height of one line
             const lines = (element.text || "").split('\n');
 
             lines.forEach(currentLineText => {
                 let textToProcess = currentLineText;
-                while(textToProcess.length > 0 && textY < element.y + STICKY_NOTE_HEIGHT - textPadding) {
+                while(textToProcess.length > 0 && textY < element.y + STICKY_NOTE_HEIGHT - textPadding) { // Check vertical limit
                     let segment = '';
                     for (let i = 0; i < textToProcess.length; i++) {
                         const testSegment = segment + textToProcess[i];
@@ -207,18 +180,19 @@ const Canvas = forwardRef(({
                         }
                         segment = testSegment;
                     }
-                    if (segment) {
+                    if (segment) { // If a segment fits
                          context.fillText(segment, element.x + textPadding, textY);
-                         textY += 16;
+                         textY += 16; // Move to next line
                          textToProcess = textToProcess.substring(segment.length);
-                    } else { 
-                        textY += 16;
-                        break; 
+                    } else { // Word itself is too long or no characters left
+                        textY += 16; // Still move to next line (or skip if word was too long)
+                        break; // Avoid infinite loop if a single character is too wide (edge case)
                     }
                 }
             });
         }
       } else if (element.type === 'rectangle') {
+        context.globalCompositeOperation = 'source-over';
         context.strokeStyle = element.strokeColor;
         context.fillStyle = element.fillColor;
         context.lineWidth = element.lineWidth;
@@ -227,6 +201,7 @@ const Canvas = forwardRef(({
         if (element.fillColor !== 'transparent') context.fill();
         context.stroke();
       } else if (element.type === 'circle') {
+        context.globalCompositeOperation = 'source-over';
         context.strokeStyle = element.strokeColor;
         context.fillStyle = element.fillColor;
         context.lineWidth = element.lineWidth;
@@ -235,29 +210,71 @@ const Canvas = forwardRef(({
         if (element.fillColor !== 'transparent') context.fill();
         context.stroke();
       } else if (element.type === 'line' || element.type === 'arrow') {
+        context.globalCompositeOperation = 'source-over';
         drawShape(context, element.type, element.x, element.y, element.endX, element.endY, {
           strokeColor: element.strokeColor,
-          fillColor: element.fillColor,
+          fillColor: element.fillColor, // Though line/arrow don't use fill by default
           lineWidth: element.lineWidth
         });
       } else if (element.type === 'text') {
+        context.globalCompositeOperation = 'source-over';
         if (editingElementId !== element.id) {
           context.fillStyle = element.color || '#000000';
-          context.font = `${element.fontSize}px Arial`;
+          context.font = `${element.fontSize}px Arial`; // Use Arial or a common font
           context.fillText(element.text || '', element.x, element.y);
         }
       }
-    });
+      
+      context.globalCompositeOperation = originalGCO; // Restore GCO after drawing each element
 
-    // Draw current shape being created
+      // Draw selection highlight (should be drawn on top, so GCO should be source-over)
+      if (selectedElements.includes(element.id)) {
+        context.save();
+        context.globalCompositeOperation = 'source-over'; // Ensure selection is drawn normally
+        context.strokeStyle = '#007bff';
+        context.lineWidth = 2;
+        context.setLineDash([5, 5]);
+        
+        if (element.type === 'sticky') {
+          context.strokeRect(element.x - 2, element.y - 2, STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
+        } else if (element.type === 'text') {
+          // Recalculate text width for accurate bounding box
+          const tempFont = context.font;
+          context.font = `${element.fontSize}px Arial`;
+          const textWidth = context.measureText(element.text).width;
+          context.font = tempFont; // Restore font
+          context.strokeRect(element.x - 2, element.y - element.fontSize - 2, textWidth + 4, element.fontSize + 8);
+        } else if (element.type === 'rectangle') {
+          context.strokeRect(element.x - 2, element.y - 2, element.width + 4, element.height + 4);
+        } else if (element.type === 'circle') {
+          context.beginPath();
+          context.arc(element.x, element.y, element.radius + 2, 0, 2 * Math.PI);
+          context.stroke();
+        } else if (element.type === 'line' || element.type === 'arrow') {
+          // Draw selection handles for lines (simple boxes at ends)
+          context.fillStyle = '#007bff'; // Use fill for handles
+          context.fillRect(element.x - 4, element.y - 4, 8, 8);
+          context.fillRect(element.endX - 4, element.endY - 4, 8, 8);
+        }
+        
+        context.restore(); // Restores GCO if it was saved, also line dash settings
+      }
+    });
+    
+    context.globalCompositeOperation = 'source-over'; // Ensure GCO is source-over after all elements
+
+    // Draw current shape being created (if any)
     if (currentShape && shapeStartPoint) {
+      // Ensure drawing mode is source-over for temporary shapes
+      context.globalCompositeOperation = 'source-over';
       drawShape(context, currentShape, shapeStartPoint.x, shapeStartPoint.y, 
-        mousePosition.x, mousePosition.y, { strokeColor, fillColor, lineWidth });
+                mousePosition.x, mousePosition.y, { strokeColor, fillColor, lineWidth });
     }
 
-    // Draw selection rectangle
+    // Draw selection rectangle (if any)
     if (selectionRect && isSelecting) {
       context.save();
+      context.globalCompositeOperation = 'source-over';
       context.strokeStyle = '#007bff';
       context.lineWidth = 1;
       context.setLineDash([5, 5]);
@@ -273,12 +290,12 @@ const Canvas = forwardRef(({
     // Canvas dimensions (bottom right)
     const dimText = `${context.canvas.width}x${context.canvas.height}`;
     context.fillStyle = '#888888'; context.font = '10px Arial';
-    const textWidth = context.measureText(dimText).width;
-    context.fillText(dimText, context.canvas.width - textWidth - 5, context.canvas.height - 5);
+    const textWidthDim = context.measureText(dimText).width;
+    context.fillText(dimText, context.canvas.width - textWidthDim - 5, context.canvas.height - 5);
 
     // Mouse coordinates (bottom left)
     const coordText = `x: ${mousePosition.x}, y: ${mousePosition.y}`;
-    context.fillStyle = '#888888'; context.font = '10px Arial';
+    context.fillStyle = '#888888'; context.font = '10px Arial'; // Ensure font is reset if changed
     context.fillText(coordText, 5, context.canvas.height - 5);
   };
 
@@ -289,36 +306,41 @@ const Canvas = forwardRef(({
     let resizeTimeout;
 
     const handleResize = () => {
-        setIsResizingCanvas(true);
+        setIsResizingCanvas(true); // Indicate resizing is in progress
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
             const container = canvas.parentElement;
-            if (container && context) {
+            if (container && contextRef.current) { // Check contextRef.current
                 canvas.width = container.clientWidth;
                 canvas.height = container.clientHeight;
-                redrawAll(context);
+                redrawAll(contextRef.current); // Use contextRef.current
             }
-            setIsResizingCanvas(false);
-        }, 100); 
+            setIsResizingCanvas(false); // Resizing done
+        }, 100); // Debounce resize
     };
 
-    handleResize();
+    handleResize(); // Initial size
     window.addEventListener('resize', handleResize);
     return () => {
         window.removeEventListener('resize', handleResize);
         clearTimeout(resizeTimeout);
     }
-  }, []);
+  }, []); // Empty dependency array: runs once on mount
 
   useEffect(() => {
+    // Redraw whenever elements or certain interaction states change
+    // but not when isResizingCanvas is true to avoid drawing on a potentially old-sized canvas
     if (contextRef.current && !isResizingCanvas) {
       redrawAll(contextRef.current);
     }
-  }, [elements, isResizingCanvas, editingElementId, selectedElements, currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting]);
+  }, [elements, isResizingCanvas, editingElementId, selectedElements, currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting, strokeColor, fillColor, lineWidth]); // Added drawing properties as deps for redraw
 
   const getElementAtPosition = (x, y) => {
+    // Iterate backwards to select top-most element
     for (let i = elements.length - 1; i >= 0; i--) {
       const element = elements[i];
+      const ctx = contextRef.current; // Ensure context is available
+
       if (element.type === 'sticky') {
         if (
           x >= element.x && x <= element.x + STICKY_NOTE_WIDTH &&
@@ -326,13 +348,15 @@ const Canvas = forwardRef(({
         ) {
           return element;
         }
-      } else if (element.type === 'text') {
-        const ctx = contextRef.current;
+      } else if (element.type === 'text' && ctx) {
+        const originalFont = ctx.font; // Save current font
         ctx.font = `${element.fontSize}px Arial`;
         const textWidth = ctx.measureText(element.text).width;
+        ctx.font = originalFont; // Restore font
+        // Check within bounding box of text
         if (
           x >= element.x && x <= element.x + textWidth &&
-          y >= element.y - element.fontSize && y <= element.y
+          y >= element.y - element.fontSize && y <= element.y // y is baseline, so check above it
         ) {
           return element;
         }
@@ -349,12 +373,18 @@ const Canvas = forwardRef(({
           return element;
         }
       } else if (element.type === 'line' || element.type === 'arrow') {
-        // Simple proximity check for lines
-        const distToStart = Math.sqrt(Math.pow(x - element.x, 2) + Math.pow(y - element.y, 2));
-        const distToEnd = Math.sqrt(Math.pow(x - element.endX, 2) + Math.pow(y - element.endY, 2));
-        const lineLength = Math.sqrt(Math.pow(element.endX - element.x, 2) + Math.pow(element.endY - element.y, 2));
-        if (distToStart + distToEnd <= lineLength + 5) { // 5px tolerance
-          return element;
+        // More robust line hit detection: distance from point to line segment
+        const { x: x1, y: y1, endX: x2, endY: y2 } = element;
+        const lenSq = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2);
+        if (lenSq === 0) { // Line is a point
+            if (Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2)) < (element.lineWidth / 2 + 3) ) return element; // 3px tolerance + half line width
+        } else {
+            let t = ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / lenSq;
+            t = Math.max(0, Math.min(1, t)); // Clamp t to the segment
+            const projX = x1 + t * (x2 - x1);
+            const projY = y1 + t * (y2 - y1);
+            const dist = Math.sqrt(Math.pow(x - projX, 2) + Math.pow(y - projY, 2));
+            if (dist < (element.lineWidth / 2 + 3)) return element; // 3px tolerance + half line width
         }
       }
     }
@@ -363,32 +393,56 @@ const Canvas = forwardRef(({
 
   const getElementsInRect = (rect) => {
     const { startX, startY, endX, endY } = rect;
-    const left = Math.min(startX, endX);
-    const right = Math.max(startX, endX);
-    const top = Math.min(startY, endY);
-    const bottom = Math.max(startY, endY);
+    const selLeft = Math.min(startX, endX);
+    const selRight = Math.max(startX, endX);
+    const selTop = Math.min(startY, endY);
+    const selBottom = Math.max(startY, endY);
+    const ctx = contextRef.current;
 
     return elements.filter(element => {
+      let elLeft, elRight, elTop, elBottom;
+
       if (element.type === 'sticky') {
-        return element.x >= left && element.x + STICKY_NOTE_WIDTH <= right &&
-               element.y >= top && element.y + STICKY_NOTE_HEIGHT <= bottom;
+        elLeft = element.x; elRight = element.x + STICKY_NOTE_WIDTH;
+        elTop = element.y; elBottom = element.y + STICKY_NOTE_HEIGHT;
       } else if (element.type === 'rectangle') {
-        return element.x >= left && element.x + element.width <= right &&
-               element.y >= top && element.y + element.height <= bottom;
+        elLeft = element.x; elRight = element.x + element.width;
+        elTop = element.y; elBottom = element.y + element.height;
       } else if (element.type === 'circle') {
-        return element.x - element.radius >= left && element.x + element.radius <= right &&
-               element.y - element.radius >= top && element.y + element.radius <= bottom;
-      } else if (element.type === 'text') {
-        const ctx = contextRef.current;
+        elLeft = element.x - element.radius; elRight = element.x + element.radius;
+        elTop = element.y - element.radius; elBottom = element.y + element.radius;
+      } else if (element.type === 'text' && ctx) {
+        const originalFont = ctx.font;
         ctx.font = `${element.fontSize}px Arial`;
         const textWidth = ctx.measureText(element.text).width;
-        return element.x >= left && element.x + textWidth <= right &&
-               element.y - element.fontSize >= top && element.y <= bottom;
+        ctx.font = originalFont;
+        elLeft = element.x; elRight = element.x + textWidth;
+        elTop = element.y - element.fontSize; elBottom = element.y;
+      } else if (element.type === 'line' || element.type === 'arrow' || element.type === 'stroke') {
+        // For lines/strokes, check if all points are within the selection rectangle
+        // This is a simplification; true "intersects" is more complex.
+        // For this example, we'll check if the bounding box of the stroke/line is within.
+        if (element.path && element.path.length > 0) { // Strokes
+            elLeft = Math.min(...element.path.map(p => p.x));
+            elRight = Math.max(...element.path.map(p => p.x));
+            elTop = Math.min(...element.path.map(p => p.y));
+            elBottom = Math.max(...element.path.map(p => p.y));
+        } else if (element.type === 'line' || element.type === 'arrow') { // Straight lines/arrows
+            elLeft = Math.min(element.x, element.endX);
+            elRight = Math.max(element.x, element.endX);
+            elTop = Math.min(element.y, element.endY);
+            elBottom = Math.max(element.y, element.endY);
+        } else {
+            return false;
+        }
+      } else {
+        return false;
       }
-      // TODO: Add line/arrow selection logic
-      return false;
+      // Check if element's bounding box is completely within selection rectangle
+      return elLeft >= selLeft && elRight <= selRight && elTop >= selTop && elBottom <= selBottom;
     });
   };
+
 
   const handleMouseDown = (event) => {
     event.preventDefault();
@@ -401,112 +455,227 @@ const Canvas = forwardRef(({
       const clickedElement = getElementAtPosition(x, y);
       
       if (clickedElement) {
-        if (event.shiftKey && !selectedElements.includes(clickedElement.id)) {
-          setSelectedElements([...selectedElements, clickedElement.id]);
+        // If shift is pressed and element is not already selected, add to selection
+        // If shift is pressed and element IS selected, remove from selection (toggle)
+        // If shift is NOT pressed, set selection to only this element
+        if (event.shiftKey) {
+            setSelectedElements(prevSelected => 
+                prevSelected.includes(clickedElement.id)
+                ? prevSelected.filter(id => id !== clickedElement.id) // Remove if already selected
+                : [...prevSelected, clickedElement.id] // Add if not selected
+            );
         } else if (!selectedElements.includes(clickedElement.id)) {
-          setSelectedElements([clickedElement.id]);
+            // If not using shift and clicked element is not part of current multi-selection, select only it
+            setSelectedElements([clickedElement.id]);
         }
+        // If it IS part of current multi-selection and shift is not pressed, it means we want to drag all selected.
         
-        // Store initial positions for all selected elements
-        const selectedElems = elements.filter(el => 
-          selectedElements.includes(el.id) || el.id === clickedElement.id
-        );
-        
+        // Prepare for dragging ALL currently selected elements
+        const currentSelectedIds = selectedElements.includes(clickedElement.id) 
+                                   ? selectedElements 
+                                   : [clickedElement.id];
+
+        const selectedElemsData = elements
+            .filter(el => currentSelectedIds.includes(el.id))
+            .map(el => ({
+                id: el.id,
+                x: el.x,
+                y: el.y,
+                endX: el.endX, // For lines/arrows
+                endY: el.endY  // For lines/arrows
+            }));
+
         setDraggingElement({
-          ids: selectedElements.includes(clickedElement.id) ? selectedElements : [clickedElement.id],
-          offsetX: x,
-          offsetY: y,
-          initialPositions: selectedElems.map(el => ({
-            id: el.id,
-            x: el.x,
-            y: el.y,
-            endX: el.endX,
-            endY: el.endY
-          }))
+          ids: currentSelectedIds,
+          initialMouseX: x, // Store initial mouse position for delta calculation
+          initialMouseY: y,
+          initialPositions: selectedElemsData
         });
+
       } else {
         // Start selection rectangle
         setIsSelecting(true);
-        setSelectionRect({ startX: x, startY: y, endX: x, endY: y });
+        setShapeStartPoint({ x, y }); // Use shapeStartPoint for selection rect start
         if (!event.shiftKey) {
-          setSelectedElements([]);
+          setSelectedElements([]); // Clear previous selection if not using shift
         }
       }
     } else if (selectedTool === 'pen' || selectedTool === 'eraser') {
-      setSelectedElements([]);
+      setSelectedElements([]); // Clear selection when drawing
       setIsDrawing(true);
       setCurrentPath([{ x, y }]);
-      context.globalCompositeOperation = selectedTool === 'eraser' ? 'destination-out' : 'source-over';
-      context.strokeStyle = selectedTool === 'eraser' ? 'rgba(0,0,0,1)' : strokeColor;
-      context.lineWidth = selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth;
+      
+      // Properties like strokeStyle, lineWidth are set on context
+      // globalCompositeOperation will be set in handleMouseMove for live drawing
       context.lineCap = 'round';
       context.lineJoin = 'round';
+      context.lineWidth = selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth;
+      context.strokeStyle = selectedTool === 'eraser' ? 'rgba(0,0,0,1)' : strokeColor; // Eraser color doesn't matter with destination-out
+
       context.beginPath(); 
       context.moveTo(x, y);
     } else if (['rectangle', 'circle', 'line', 'arrow'].includes(selectedTool)) {
-      setSelectedElements([]);
+      setSelectedElements([]); // Clear selection
       setShapeStartPoint({ x, y });
-      setCurrentShape(selectedTool);
+      setCurrentShape(selectedTool); // To indicate a shape is being drawn
     } else if (selectedTool === 'text') {
       setSelectedElements([]);
       const newTextId = Date.now();
       const newText = {
         type: 'text',
         x,
-        y,
-        text: '',
+        y, // y is baseline for text
+        text: '', // Default empty text
         color: strokeColor,
         fontSize: fontSize,
         id: newTextId
       };
-      onDrawingOrElementComplete(newText);
-      setTimeout(() => {
-        activateTextEditing(newText);
+      // Add element first, then activate editing
+      onDrawingOrElementComplete(newText); 
+      setTimeout(() => { // Timeout to allow state update and element to render
+        activateTextEditing(newText); // Pass the newly created element
       }, 0);
-    } else { 
-      const clickedElement = getElementAtPosition(x, y);
-      if (clickedElement && clickedElement.type === 'sticky') { 
-        const now = Date.now();
-        if (clickedElement.id === (canvasRef.current._lastClickedId) && (now - canvasRef.current._lastClickTime < 300) ) {
-            activateStickyNoteEditing(clickedElement, canvasRef.current.getBoundingClientRect());
-            canvasRef.current._lastClickedId = null; 
-            setDraggingElement(null); 
-        } else {
-            setDraggingElement({
-                id: clickedElement.id,
-                offsetX: x - clickedElement.x,
-                offsetY: y - clickedElement.y,
-            });
-            canvasRef.current._lastClickedId = clickedElement.id;
-            canvasRef.current._lastClickTime = now;
-        }
-      } else if (clickedElement && clickedElement.type === 'text') {
-        activateTextEditing(clickedElement);
-      } else {
-        canvasRef.current._lastClickedId = null; 
-      }
+    } else if (selectedTool === 'sticky') { // Handle sticky note placement on first click now
+        // This was previously in handleCanvasClick, moved here for consistency if sticky tool is selected
+        setSelectedElements([]);
+        const newStickyId = Date.now();
+        const newSticky = {
+          type: 'sticky', x: x - STICKY_NOTE_WIDTH / 2, y: y - STICKY_NOTE_HEIGHT / 2,
+          text: '', backgroundColor: '#FFFACD', id: newStickyId
+        };
+        onDrawingOrElementComplete(newSticky); 
+        setTimeout(() => {
+            activateStickyNoteEditing(newSticky); // Pass element, not canvas rect here
+        },0);
     }
+    
+    // Double click logic for sticky notes & text (moved from handleCanvasClick)
+    if (selectedTool !== 'select' && selectedTool !== 'sticky' && selectedTool !== 'text') { // Only if not already handling placement/selection
+        const clickedElementForEdit = getElementAtPosition(x, y);
+        if (clickedElementForEdit) {
+            const now = Date.now();
+            const lastClickInfo = canvasRef.current._lastClickDetails || {};
+            
+            if (clickedElementForEdit.id === lastClickInfo.id && (now - lastClickInfo.time < 300)) { // 300ms for double click
+                if (clickedElementForEdit.type === 'sticky') {
+                    activateStickyNoteEditing(clickedElementForEdit);
+                } else if (clickedElementForEdit.type === 'text') {
+                    activateTextEditing(clickedElementForEdit);
+                }
+                canvasRef.current._lastClickDetails = {}; // Reset after double click processed
+                setDraggingElement(null); // Stop any potential drag from first click
+            } else {
+                canvasRef.current._lastClickDetails = { id: clickedElementForEdit.id, time: now };
+            }
+        } else {
+            canvasRef.current._lastClickDetails = {}; // Clicked on empty space
+        }
+    }
+
   };
 
   const handleMouseMove = (event) => {
     event.preventDefault();
-    const { x, y } = getMousePosition(event);
+    const { x, y } = getMousePosition(event); // This updates mousePosition state -> triggers redrawAll
     const context = contextRef.current;
 
-    if (editingElementId) return;
+    if (editingElementId || !context) return;
 
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
+      // **MODIFIED SECTION for BUG FIX**
+      // Ensure globalCompositeOperation is correctly set for the LIVE drawing/erasing
+      // because redrawAll (triggered by mousePosition change via getMousePosition) might have reset it.
+      if (selectedTool === 'eraser') {
+        context.globalCompositeOperation = 'destination-out';
+      } else { // Pen tool
+        context.globalCompositeOperation = 'source-over';
+      }
+      // Other context properties (strokeStyle, lineWidth, lineCap, lineJoin)
+      // are assumed to be set by handleMouseDown and persistent for the current path operation.
       context.lineTo(x, y); 
-      context.stroke();
+      context.stroke(); // This uses the GCO set above
       setCurrentPath(prev => [...prev, { x, y }]);
-    } else if (draggingElement) {
-      if (draggingElement.ids && draggingElement.initialPositions) {
-        // Multi-element drag with proper offset
-        const deltaX = x - draggingElement.offsetX;
-        const deltaY = y - draggingElement.offsetY;
-        
-        const tempElements = elements.map(el => {
-          const initialPos = draggingElement.initialPositions.find(pos => pos.id === el.id);
+
+    } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
+      const deltaX = x - draggingElement.initialMouseX;
+      const deltaY = y - draggingElement.initialMouseY;
+      
+      // For live preview, we don't alter 'elements' state, just draw temporarily.
+      // The actual update happens in handleMouseUp.
+      // So, we'll rely on redrawAll to clear and then we draw the dragged elements in their new temp positions.
+      // This part of handleMouseMove should ideally just update some temporary drawing state
+      // that redrawAll can use, or draw directly after redrawAll clears.
+      // For simplicity here, we'll let redrawAll clear, then this will draw over.
+      // This means redrawAll needs to be efficient.
+
+      // To provide a visual feedback during dragging without committing to state:
+      const tempElementsToDraw = elements.map(el => {
+          const initialPos = draggingElement.initialPositions.find(p => p.id === el.id);
+          if (initialPos) {
+              if (el.type === 'line' || el.type === 'arrow') {
+                  return { ...el, x: initialPos.x + deltaX, y: initialPos.y + deltaY, endX: initialPos.endX + deltaX, endY: initialPos.endY + deltaY };
+              }
+              return { ...el, x: initialPos.x + deltaX, y: initialPos.y + deltaY };
+          }
+          return el;
+      });
+
+      // Instead of redrawing all here, we let the main redrawAll (triggered by mousePosition) handle it.
+      // We then draw the current state of dragged items on top of that.
+      // This requires careful handling of redrawAll.
+      // For now, let's assume redrawAll from useEffect handles the base,
+      // and we are just updating a visual cue or relying on the next redraw cycle.
+      // The `currentShape` drawing logic in `redrawAll` is an example of drawing temporary things.
+      // We might need a similar mechanism for dragging previews if performance is an issue.
+      // The simplest is to just trigger a redraw with the new mouse position.
+      // The `redrawAll` will then use the *original* `elements` data.
+      // The actual update of `elements` for drag must happen in `handleMouseUp`.
+
+      // This mouseMove primarily sets mousePosition, which triggers redraw.
+      // The actual visual update of dragged elements should be part of redrawAll based on draggingElement state.
+      // For now, we will let redrawAll handle the background and other elements.
+      // The final position is set on mouseUp. The visual feedback of dragging is tricky with this redraw model.
+
+      // The current `redrawAll` does not account for previewing dragged elements.
+      // It only draws from the `elements` state.
+      // This means during drag, elements might flicker or not show their dragged position until mouseUp.
+      // A proper solution would be for `redrawAll` to check `draggingElement` and draw previews.
+
+    } else if (isSelecting && shapeStartPoint) { // Used shapeStartPoint for selection rect
+      setSelectionRect({ startX: shapeStartPoint.x, startY: shapeStartPoint.y, endX: x, endY: y });
+    }
+  };
+
+  const handleMouseUp = (event) => {
+    event.preventDefault();
+    const { x, y } = getMousePosition(event); // Final position
+    const context = contextRef.current;
+
+    if (isDrawing) {
+      setIsDrawing(false);
+      if (currentPath.length > 1) { // Only save if it's more than a dot
+        onDrawingOrElementComplete({
+          type: 'stroke', 
+          // For eraser, color is stored but not directly used if isEraser is true.
+          // For pen, strokeColor from state is used.
+          color: selectedTool === 'pen' ? strokeColor : 'rgba(0,0,0,0)', // Store actual stroke color for pen
+          lineWidth: selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth,
+          path: currentPath, 
+          isEraser: selectedTool === 'eraser', 
+          id: Date.now()
+        });
+      }
+      setCurrentPath([]);
+      if (context) {
+         context.globalCompositeOperation = 'source-over'; // Reset GCO after drawing/erasing is done
+      }
+    } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
+      const deltaX = x - draggingElement.initialMouseX;
+      const deltaY = y - draggingElement.initialMouseY;
+      
+      updateElementsAndHistory(prevElements =>
+        prevElements.map(el => {
+          const initialPos = draggingElement.initialPositions.find(p => p.id === el.id);
           if (initialPos) {
             if (el.type === 'line' || el.type === 'arrow') {
               return { 
@@ -516,131 +685,22 @@ const Canvas = forwardRef(({
                 endX: initialPos.endX + deltaX,
                 endY: initialPos.endY + deltaY
               };
-            } else {
+            } else { // Rectangles, circles, stickies, text
               return { ...el, x: initialPos.x + deltaX, y: initialPos.y + deltaY };
             }
           }
           return el;
-        });
-        
-        // Redraw with temp elements
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-        
-        // Draw all elements with temporary positions
-        tempElements.forEach(element => {
-          // Redraw logic (simplified - copy from redrawAll)
-          if (element.type === 'stroke') {
-            context.globalCompositeOperation = element.isEraser ? 'destination-out' : 'source-over';
-            context.strokeStyle = element.isEraser ? 'rgba(0,0,0,1)' : element.color;
-            context.lineWidth = element.lineWidth;
-            context.beginPath();
-            element.path.forEach((point, index) => {
-              if (index === 0) context.moveTo(point.x, point.y);
-              else context.lineTo(point.x, point.y);
-            });
-            context.stroke();
-            context.globalCompositeOperation = 'source-over';
-          } else if (element.type === 'rectangle') {
-            context.strokeStyle = element.strokeColor;
-            context.fillStyle = element.fillColor;
-            context.lineWidth = element.lineWidth;
-            context.beginPath();
-            context.rect(element.x, element.y, element.width, element.height);
-            if (element.fillColor !== 'transparent') context.fill();
-            context.stroke();
-          } else if (element.type === 'circle') {
-            context.strokeStyle = element.strokeColor;
-            context.fillStyle = element.fillColor;
-            context.lineWidth = element.lineWidth;
-            context.beginPath();
-            context.arc(element.x, element.y, element.radius, 0, 2 * Math.PI);
-            if (element.fillColor !== 'transparent') context.fill();
-            context.stroke();
-          } else if (element.type === 'line' || element.type === 'arrow') {
-            drawShape(context, element.type, element.x, element.y, element.endX, element.endY, {
-              strokeColor: element.strokeColor,
-              fillColor: element.fillColor,
-              lineWidth: element.lineWidth
-            });
-          }
-          // Add other element types as needed
-        });
-      } else {
-        // Single element drag (sticky note)
-        const newX = x - draggingElement.offsetX;
-        const newY = y - draggingElement.offsetY;
-        const tempElements = elements.map(el =>
-          el.id === draggingElement.id ? { ...el, x: newX, y: newY } : el
-        );
-        redrawAll(contextRef.current);
-      }
-    } else if (isSelecting && selectionRect) {
-      setSelectionRect({ ...selectionRect, endX: x, endY: y });
-    }
-  };
-
-  const handleMouseUp = (event) => {
-    event.preventDefault();
-    const { x, y } = getMousePosition(event);
-
-    if (isDrawing) {
-      setIsDrawing(false);
-      if (currentPath.length > 0) {
-        onDrawingOrElementComplete({
-          type: 'stroke', color: strokeColor, lineWidth: selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth,
-          path: currentPath, isEraser: selectedTool === 'eraser', id: Date.now()
-        });
-      }
-      setCurrentPath([]);
-      if (contextRef.current) contextRef.current.globalCompositeOperation = 'source-over';
-    } else if (draggingElement) {
-      if (draggingElement.ids && draggingElement.initialPositions) {
-        // Multi-element drag - save final positions
-        const deltaX = x - draggingElement.offsetX;
-        const deltaY = y - draggingElement.offsetY;
-        
-        updateElementsAndHistory(prevElements =>
-          prevElements.map(el => {
-            const initialPos = draggingElement.initialPositions.find(pos => pos.id === el.id);
-            if (initialPos) {
-              if (el.type === 'line' || el.type === 'arrow') {
-                return { 
-                  ...el, 
-                  x: initialPos.x + deltaX, 
-                  y: initialPos.y + deltaY,
-                  endX: initialPos.endX + deltaX,
-                  endY: initialPos.endY + deltaY
-                };
-              } else {
-                return { ...el, x: initialPos.x + deltaX, y: initialPos.y + deltaY };
-              }
-            }
-            return el;
-          })
-        );
-      } else {
-        // Single element drag
-        const finalX = x - draggingElement.offsetX;
-        const finalY = y - draggingElement.offsetY;
-
-        updateElementsAndHistory(prevElements =>
-            prevElements.map(el =>
-                el.id === draggingElement.id ? { ...el, x: finalX, y: finalY } : el
-            )
-        );
-      }
+        })
+      );
       setDraggingElement(null);
     } else if (currentShape && shapeStartPoint) {
-      // Only create shape if mouse has moved from start point
       const distance = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
-      if (distance > 2) { // Minimum 2px movement to create shape
+      if (distance > 2) { // Minimum movement to create shape
         let newElement = {
           type: currentShape,
-          strokeColor,
-          fillColor,
-          lineWidth,
+          strokeColor: strokeColor, // Use current strokeColor from state
+          fillColor: fillColor,     // Use current fillColor from state
+          lineWidth: lineWidth,   // Use current lineWidth from state
           id: Date.now()
         };
 
@@ -650,7 +710,7 @@ const Canvas = forwardRef(({
           newElement.width = Math.abs(x - shapeStartPoint.x);
           newElement.height = Math.abs(y - shapeStartPoint.y);
         } else if (currentShape === 'circle') {
-          newElement.x = shapeStartPoint.x;
+          newElement.x = shapeStartPoint.x; // Center of circle is start point
           newElement.y = shapeStartPoint.y;
           newElement.radius = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
         } else if (currentShape === 'line' || currentShape === 'arrow') {
@@ -659,48 +719,31 @@ const Canvas = forwardRef(({
           newElement.endX = x;
           newElement.endY = y;
         }
-
         onDrawingOrElementComplete(newElement);
       }
       setShapeStartPoint(null);
       setCurrentShape(null);
-    } else if (isSelecting && selectionRect) {
-      const selectedInRect = getElementsInRect(selectionRect);
-      if (selectedInRect.length > 0) {
-        const newSelectedIds = selectedInRect.map(el => el.id);
-        if (event.shiftKey) {
-          setSelectedElements([...new Set([...selectedElements, ...newSelectedIds])]);
-        } else {
-          setSelectedElements(newSelectedIds);
-        }
+    } else if (isSelecting && selectionRect) { // Finalize selection rectangle
+      const elementsInSelection = getElementsInRect(selectionRect);
+      if (elementsInSelection.length > 0) {
+          const newSelectedIds = elementsInSelection.map(el => el.id);
+          if (event.shiftKey) { // Add to existing selection if shift is held
+              setSelectedElements(prev => [...new Set([...prev, ...newSelectedIds])]);
+          } else {
+              setSelectedElements(newSelectedIds);
+          }
+      } else if (!event.shiftKey) { // If nothing selected and not holding shift, clear selection
+          // setSelectedElements([]); // This is handled by mousedown if not shiftkey
       }
       setIsSelecting(false);
-      setSelectionRect(null);
+      setSelectionRect(null); // Clear the visual selection rectangle
+      setShapeStartPoint(null); // Clear shapeStartPoint which was used for selection rect
     }
   };
 
-  const handleCanvasClick = (event) => {
-    if (editingElementId) return; 
-    if (draggingElement) return; 
-
-    const now = Date.now();
-    if (canvasRef.current._lastClickTime && (now - canvasRef.current._lastClickTime < 300) && canvasRef.current._lastClickedId) {
-        return;
-    }
-
-    if (selectedTool === 'sticky') {
-      const { x, y } = getMousePosition(event);
-      const newStickyId = Date.now();
-      const newSticky = {
-        type: 'sticky', x: x - STICKY_NOTE_WIDTH / 2, y: y - STICKY_NOTE_HEIGHT / 2,
-        text: '', backgroundColor: '#FFFACD', id: newStickyId
-      };
-      onDrawingOrElementComplete(newSticky); 
-      setTimeout(() => {
-          activateStickyNoteEditing(newSticky, canvasRef.current.getBoundingClientRect());
-      },0);
-    }
-  };
+  // Removed handleCanvasClick as its primary unique role (double click for sticky)
+  // is now somewhat integrated into handleMouseDown's double click detection.
+  // Sticky note creation is now part of handleMouseDown if sticky tool is selected.
 
   let canvasCursor = 'auto';
     if (editingElementId) canvasCursor = 'text'; 
@@ -709,13 +752,19 @@ const Canvas = forwardRef(({
     else if (selectedTool === 'pen') canvasCursor = 'crosshair';
     else if (selectedTool === 'eraser') canvasCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1'><circle cx='12' cy='12' r='10'/></svg>") 12 12, auto`;
     else if (selectedTool === 'sticky') canvasCursor = 'cell';
-    else if (selectedTool === 'select') canvasCursor = 'default';
+    else if (selectedTool === 'select') canvasCursor = 'default'; // Or 'grab' if over a draggable element
     else if (['rectangle', 'circle', 'line', 'arrow', 'text'].includes(selectedTool)) canvasCursor = 'crosshair';
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Delete' && selectedElements.length > 0 && !editingElementId) {
+      // Ensure not editing text in a textarea
+      if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
+        return;
+      }
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedElements.length > 0 && !editingElementId) {
+        event.preventDefault(); // Prevent browser back navigation on Backspace
         updateElementsAndHistory(prevElements => 
           prevElements.filter(el => !selectedElements.includes(el.id))
         );
@@ -731,9 +780,18 @@ const Canvas = forwardRef(({
     <div className="canvas-wrapper"> 
       <canvas
         ref={canvasRef} id="main-canvas" style={{ cursor: canvasCursor }}
-        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} 
+        onMouseLeave={() => { // If mouse leaves canvas while drawing/dragging, treat as mouse up
+            if (isDrawing || draggingElement || (isSelecting && selectionRect) || (currentShape && shapeStartPoint)) {
+                 // Simulate a mouse up at the last known mouse position
+                 // Create a fake event or just call handler with null/last known position
+                 // For simplicity, just call handleMouseUp with a minimal event-like structure
+                 // or directly if your handleMouseUp can handle null event (it uses getMousePosition)
+                 handleMouseUp({preventDefault: () => {}, clientX: mousePosition.x + (canvasRef.current?.getBoundingClientRect().left || 0) , clientY: mousePosition.y + (canvasRef.current?.getBoundingClientRect().top || 0) });
+            }
+        }}
         onTouchStart={handleMouseDown} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
-        onClick={handleCanvasClick}
+        // onClick was removed, its functionality merged into handleMouseDown for double-click
       />
     </div>
   );

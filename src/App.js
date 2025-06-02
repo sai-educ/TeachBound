@@ -115,7 +115,16 @@ function App() {
 
   const handleUndo = () => historyStep > 0 && setHistoryStep(historyStep - 1);
   const handleRedo = () => historyStep < history.length - 1 && setHistoryStep(historyStep + 1);
-  const handleClearFrame = () => updateElementsAndHistory([]);
+  
+  const handleClearFrame = () => {
+    const confirmed = window.confirm("Are you sure you want to clear the canvas? This action cannot be undone.");
+    if (confirmed) {
+      // Clear the canvas and reset history
+      setHistory([[]]);
+      setHistoryStep(0);
+    }
+  };
+  
   const handleDownloadPNG = () => canvasRef.current?.downloadAsPNG();
 
   const handleDeleteSelected = useCallback(() => {

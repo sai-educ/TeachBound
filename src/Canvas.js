@@ -157,6 +157,11 @@ const Canvas = forwardRef(({
           context.beginPath();
           context.arc(element.x, element.y, element.radius + 2, 0, 2 * Math.PI);
           context.stroke();
+        } else if (element.type === 'line' || element.type === 'arrow') {
+          // Draw selection handles for lines
+          context.fillStyle = '#007bff';
+          context.fillRect(element.x - 4, element.y - 4, 8, 8);
+          context.fillRect(element.endX - 4, element.endY - 4, 8, 8);
         }
         
         context.restore();
@@ -213,16 +218,28 @@ const Canvas = forwardRef(({
                 }
             });
         }
-      } else if (element.type === 'rectangle' || element.type === 'circle' || element.type === 'line' || element.type === 'arrow') {
-        drawShape(context, element.type, element.x, element.y, 
-          element.type === 'rectangle' ? element.x + element.width : element.endX,
-          element.type === 'rectangle' ? element.y + element.height : element.endY,
-          {
-            strokeColor: element.strokeColor,
-            fillColor: element.fillColor,
-            lineWidth: element.lineWidth
-          }
-        );
+      } else if (element.type === 'rectangle') {
+        context.strokeStyle = element.strokeColor;
+        context.fillStyle = element.fillColor;
+        context.lineWidth = element.lineWidth;
+        context.beginPath();
+        context.rect(element.x, element.y, element.width, element.height);
+        if (element.fillColor !== 'transparent') context.fill();
+        context.stroke();
+      } else if (element.type === 'circle') {
+        context.strokeStyle = element.strokeColor;
+        context.fillStyle = element.fillColor;
+        context.lineWidth = element.lineWidth;
+        context.beginPath();
+        context.arc(element.x, element.y, element.radius, 0, 2 * Math.PI);
+        if (element.fillColor !== 'transparent') context.fill();
+        context.stroke();
+      } else if (element.type === 'line' || element.type === 'arrow') {
+        drawShape(context, element.type, element.x, element.y, element.endX, element.endY, {
+          strokeColor: element.strokeColor,
+          fillColor: element.fillColor,
+          lineWidth: element.lineWidth
+        });
       } else if (element.type === 'text') {
         if (editingElementId !== element.id) {
           context.fillStyle = element.color || '#000000';
@@ -390,13 +407,22 @@ const Canvas = forwardRef(({
           setSelectedElements([clickedElement.id]);
         }
         
+        // Store initial positions for all selected elements
+        const selectedElems = elements.filter(el => 
+          selectedElements.includes(el.id) || el.id === clickedElement.id
+        );
+        
         setDraggingElement({
           ids: selectedElements.includes(clickedElement.id) ? selectedElements : [clickedElement.id],
-          offsetX: x - clickedElement.x,
-          offsetY: y - clickedElement.y,
-          elements: selectedElements.includes(clickedElement.id) 
-            ? elements.filter(el => selectedElements.includes(el.id))
-            : [clickedElement]
+          offsetX: x,
+          offsetY: y,
+          initialPositions: selectedElems.map(el => ({
+            id: el.id,
+            x: el.x,
+            y: el.y,
+            endX: el.endX,
+            endY: el.endY
+          }))
         });
       } else {
         // Start selection rectangle
@@ -413,7 +439,10 @@ const Canvas = forwardRef(({
       context.globalCompositeOperation = selectedTool === 'eraser' ? 'destination-out' : 'source-over';
       context.strokeStyle = selectedTool === 'eraser' ? 'rgba(0,0,0,1)' : strokeColor;
       context.lineWidth = selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth;
-      context.beginPath(); context.moveTo(x, y);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.beginPath(); 
+      context.moveTo(x, y);
     } else if (['rectangle', 'circle', 'line', 'arrow'].includes(selectedTool)) {
       setSelectedElements([]);
       setShapeStartPoint({ x, y });
@@ -467,22 +496,77 @@ const Canvas = forwardRef(({
     if (editingElementId) return;
 
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
-      context.lineTo(x, y); context.stroke();
+      context.lineTo(x, y); 
+      context.stroke();
       setCurrentPath(prev => [...prev, { x, y }]);
     } else if (draggingElement) {
-      if (draggingElement.ids) {
-        // Multi-element drag
-        const deltaX = x - draggingElement.offsetX - draggingElement.elements[0].x;
-        const deltaY = y - draggingElement.offsetY - draggingElement.elements[0].y;
+      if (draggingElement.ids && draggingElement.initialPositions) {
+        // Multi-element drag with proper offset
+        const deltaX = x - draggingElement.offsetX;
+        const deltaY = y - draggingElement.offsetY;
         
         const tempElements = elements.map(el => {
-          if (draggingElement.ids.includes(el.id)) {
-            return { ...el, x: el.x + deltaX, y: el.y + deltaY };
+          const initialPos = draggingElement.initialPositions.find(pos => pos.id === el.id);
+          if (initialPos) {
+            if (el.type === 'line' || el.type === 'arrow') {
+              return { 
+                ...el, 
+                x: initialPos.x + deltaX, 
+                y: initialPos.y + deltaY,
+                endX: initialPos.endX + deltaX,
+                endY: initialPos.endY + deltaY
+              };
+            } else {
+              return { ...el, x: initialPos.x + deltaX, y: initialPos.y + deltaY };
+            }
           }
           return el;
         });
         
-        redrawAll(contextRef.current);
+        // Redraw with temp elements
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+        
+        // Draw all elements with temporary positions
+        tempElements.forEach(element => {
+          // Redraw logic (simplified - copy from redrawAll)
+          if (element.type === 'stroke') {
+            context.globalCompositeOperation = element.isEraser ? 'destination-out' : 'source-over';
+            context.strokeStyle = element.isEraser ? 'rgba(0,0,0,1)' : element.color;
+            context.lineWidth = element.lineWidth;
+            context.beginPath();
+            element.path.forEach((point, index) => {
+              if (index === 0) context.moveTo(point.x, point.y);
+              else context.lineTo(point.x, point.y);
+            });
+            context.stroke();
+            context.globalCompositeOperation = 'source-over';
+          } else if (element.type === 'rectangle') {
+            context.strokeStyle = element.strokeColor;
+            context.fillStyle = element.fillColor;
+            context.lineWidth = element.lineWidth;
+            context.beginPath();
+            context.rect(element.x, element.y, element.width, element.height);
+            if (element.fillColor !== 'transparent') context.fill();
+            context.stroke();
+          } else if (element.type === 'circle') {
+            context.strokeStyle = element.strokeColor;
+            context.fillStyle = element.fillColor;
+            context.lineWidth = element.lineWidth;
+            context.beginPath();
+            context.arc(element.x, element.y, element.radius, 0, 2 * Math.PI);
+            if (element.fillColor !== 'transparent') context.fill();
+            context.stroke();
+          } else if (element.type === 'line' || element.type === 'arrow') {
+            drawShape(context, element.type, element.x, element.y, element.endX, element.endY, {
+              strokeColor: element.strokeColor,
+              fillColor: element.fillColor,
+              lineWidth: element.lineWidth
+            });
+          }
+          // Add other element types as needed
+        });
       } else {
         // Single element drag (sticky note)
         const newX = x - draggingElement.offsetX;
@@ -512,15 +596,26 @@ const Canvas = forwardRef(({
       setCurrentPath([]);
       if (contextRef.current) contextRef.current.globalCompositeOperation = 'source-over';
     } else if (draggingElement) {
-      if (draggingElement.ids) {
-        // Multi-element drag
-        const deltaX = x - draggingElement.offsetX - draggingElement.elements[0].x;
-        const deltaY = y - draggingElement.offsetY - draggingElement.elements[0].y;
+      if (draggingElement.ids && draggingElement.initialPositions) {
+        // Multi-element drag - save final positions
+        const deltaX = x - draggingElement.offsetX;
+        const deltaY = y - draggingElement.offsetY;
         
         updateElementsAndHistory(prevElements =>
           prevElements.map(el => {
-            if (draggingElement.ids.includes(el.id)) {
-              return { ...el, x: el.x + deltaX, y: el.y + deltaY };
+            const initialPos = draggingElement.initialPositions.find(pos => pos.id === el.id);
+            if (initialPos) {
+              if (el.type === 'line' || el.type === 'arrow') {
+                return { 
+                  ...el, 
+                  x: initialPos.x + deltaX, 
+                  y: initialPos.y + deltaY,
+                  endX: initialPos.endX + deltaX,
+                  endY: initialPos.endY + deltaY
+                };
+              } else {
+                return { ...el, x: initialPos.x + deltaX, y: initialPos.y + deltaY };
+              }
             }
             return el;
           })
@@ -538,31 +633,35 @@ const Canvas = forwardRef(({
       }
       setDraggingElement(null);
     } else if (currentShape && shapeStartPoint) {
-      let newElement = {
-        type: currentShape,
-        strokeColor,
-        fillColor,
-        lineWidth,
-        id: Date.now()
-      };
+      // Only create shape if mouse has moved from start point
+      const distance = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
+      if (distance > 2) { // Minimum 2px movement to create shape
+        let newElement = {
+          type: currentShape,
+          strokeColor,
+          fillColor,
+          lineWidth,
+          id: Date.now()
+        };
 
-      if (currentShape === 'rectangle') {
-        newElement.x = Math.min(shapeStartPoint.x, x);
-        newElement.y = Math.min(shapeStartPoint.y, y);
-        newElement.width = Math.abs(x - shapeStartPoint.x);
-        newElement.height = Math.abs(y - shapeStartPoint.y);
-      } else if (currentShape === 'circle') {
-        newElement.x = shapeStartPoint.x;
-        newElement.y = shapeStartPoint.y;
-        newElement.radius = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
-      } else if (currentShape === 'line' || currentShape === 'arrow') {
-        newElement.x = shapeStartPoint.x;
-        newElement.y = shapeStartPoint.y;
-        newElement.endX = x;
-        newElement.endY = y;
+        if (currentShape === 'rectangle') {
+          newElement.x = Math.min(shapeStartPoint.x, x);
+          newElement.y = Math.min(shapeStartPoint.y, y);
+          newElement.width = Math.abs(x - shapeStartPoint.x);
+          newElement.height = Math.abs(y - shapeStartPoint.y);
+        } else if (currentShape === 'circle') {
+          newElement.x = shapeStartPoint.x;
+          newElement.y = shapeStartPoint.y;
+          newElement.radius = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
+        } else if (currentShape === 'line' || currentShape === 'arrow') {
+          newElement.x = shapeStartPoint.x;
+          newElement.y = shapeStartPoint.y;
+          newElement.endX = x;
+          newElement.endY = y;
+        }
+
+        onDrawingOrElementComplete(newElement);
       }
-
-      onDrawingOrElementComplete(newElement);
       setShapeStartPoint(null);
       setCurrentShape(null);
     } else if (isSelecting && selectionRect) {

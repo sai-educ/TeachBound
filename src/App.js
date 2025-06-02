@@ -11,7 +11,9 @@ const APP_NAME = "EduBoard";
 function App() {
   const [selectedTool, setSelectedTool] = useState('pen');
   const [strokeColor, setStrokeColor] = useState('#000000');
+  const [fillColor, setFillColor] = useState('transparent');
   const [lineWidth, setLineWidth] = useState(5);
+  const [fontSize, setFontSize] = useState(16);
 
   const [history, setHistory] = useState([[]]); // Array of element arrays
   const [historyStep, setHistoryStep] = useState(0);
@@ -42,6 +44,9 @@ function App() {
         if (newElement.type === 'sticky' && !newElement.text) {
             setEditingElement({ id: newElement.id, text: newElement.text || "Note..." });
         }
+        if (newElement.type === 'text' && !newElement.text) {
+            setEditingElement({ id: newElement.id, text: newElement.text || "", isText: true });
+        }
         return [...prevElements, newElement];
     });
   }, [updateElementsAndHistory]);
@@ -49,6 +54,23 @@ function App() {
   const activateStickyNoteEditing = useCallback((element) => {
     if (element && element.type === 'sticky') {
         setEditingElement({ id: element.id, text: element.text });
+        const canvasGlobalRect = canvasRef.current?.getCanvasGlobalRect();
+        if (canvasGlobalRect) {
+            setTextAreaPosition({
+                x: canvasGlobalRect.left + element.x,
+                y: canvasGlobalRect.top + element.y,
+            });
+        }
+        setTimeout(() => {
+            textAreaRef.current?.focus();
+            textAreaRef.current?.select();
+        }, 0);
+    }
+  }, []);
+
+  const activateTextEditing = useCallback((element) => {
+    if (element && element.type === 'text') {
+        setEditingElement({ id: element.id, text: element.text, isText: true });
         const canvasGlobalRect = canvasRef.current?.getCanvasGlobalRect();
         if (canvasGlobalRect) {
             setTextAreaPosition({
@@ -96,6 +118,10 @@ function App() {
   const handleClearFrame = () => updateElementsAndHistory([]);
   const handleDownloadPNG = () => canvasRef.current?.downloadAsPNG();
 
+  const handleDeleteSelected = useCallback(() => {
+    canvasRef.current?.deleteSelectedElements();
+  }, []);
+
   return (
     <div className="App">
       <header className="app-header">
@@ -119,25 +145,33 @@ function App() {
           setSelectedTool={setSelectedTool}
           strokeColor={strokeColor}
           setStrokeColor={setStrokeColor}
+          fillColor={fillColor}
+          setFillColor={setFillColor}
           lineWidth={lineWidth}
           setLineWidth={setLineWidth}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
           onUndo={handleUndo}
           onRedo={handleRedo}
           onClearFrame={handleClearFrame}
           canUndo={historyStep > 0}
           canRedo={historyStep < history.length - 1}
           onDownloadPNG={handleDownloadPNG}
+          onDeleteSelected={handleDeleteSelected}
         />
         <Canvas
           ref={canvasRef}
           selectedTool={selectedTool}
           strokeColor={strokeColor}
+          fillColor={fillColor}
           lineWidth={lineWidth}
+          fontSize={fontSize}
           elements={elements}
           onDrawingOrElementComplete={handleDrawingOrElementComplete}
           updateElementsAndHistory={updateElementsAndHistory}
           editingElementId={editingElement?.id}
           activateStickyNoteEditing={activateStickyNoteEditing}
+          activateTextEditing={activateTextEditing}
         />
       </div>
 
@@ -149,8 +183,11 @@ function App() {
             position: 'absolute',
             top: `${textAreaPosition.y}px`,
             left: `${textAreaPosition.x}px`,
-            width: '150px', 
-            height: '100px',
+            width: editingElement.isText ? '300px' : '150px', 
+            height: editingElement.isText ? 'auto' : '100px',
+            minHeight: editingElement.isText ? '30px' : '100px',
+            fontSize: editingElement.isText ? `${fontSize}px` : '14px',
+            backgroundColor: editingElement.isText ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 250, 205, 0.95)',
           }}
           value={editingElement.text}
           onChange={handleTextAreaChange}

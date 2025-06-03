@@ -1,104 +1,66 @@
-# EduBoard: An Interactive Digital Whiteboard
+# EduBoard: Your Interactive Digital Whiteboard
 
-**An intuitive, web-based whiteboard for brainstorming, ideation, and visual learning. Inspired by Google Jamboard.**
+**An intuitive, web-based whiteboard for dynamic teaching, collaborative brainstorming, and visual learning. Open source and free for all.**
 
-EduBoard is 100% free to use, features no advertisements, and is fully open source. Pull requests are warmly welcome!
-
-*Currently, EduBoard supports single-user functionality. Multi-user collaboration is a planned future enhancement.*
+EduBoard aims to provide a simple, yet powerful, digital canvas for educators, students, and teams to create, share, and engage with ideas visually.
 
 ---
 
 ## Try EduBoard Live!
 
-Experience EduBoard directly in your browser:
+Experience EduBoard directly in your browser (single-user for now, multiplayer in active development!):
 **[Live Demo: https://jamboard-clone.vercel.app/](https://jamboard-clone.vercel.app/)**
 
----
-Screenshot:
 <img width="1295" alt="EduBoard Jamboard Clone" src="https://github.com/user-attachments/assets/8762ef2a-cddf-4781-ad3c-0091f1ec5776" />
 
-## Introduction
+---
 
-EduBoard is a digital whiteboard application designed to foster creativity, collaboration, and dynamic interaction in educational and professional settings. Whether you're sketching out ideas, organizing thoughts with sticky notes, or annotating concepts, EduBoard provides a flexible and user-friendly canvas for your digital workspace. My aim is to offer a streamlined and accessible alternative for educators and learners seeking a straightforward digital whiteboard experience.
+## Overview
 
-## Purpose and Vision
+EduBoard is an open-source digital whiteboard application built with React, designed to foster creativity and interaction in educational and professional settings. Whether you're sketching concepts, organizing thoughts with notes, or illustrating complex topics, EduBoard offers a user-friendly platform for your digital workspace. Our vision is to provide a streamlined, accessible, and ad-free alternative for anyone seeking an effective digital whiteboard.
 
-The primary goal of EduBoard is to provide a simple yet effective tool for:
+## Key Features
 
-* **Brainstorming:** Capture and connect ideas visually in a free-form environment.
-* **Visual Collaboration:** (Future Goal) Enable multiple users to work together on the same board in real-time.
-* **Educational Engagement:** Serve as an interactive teaching and learning aid, allowing educators and students to illustrate concepts, solve problems, and share notes dynamically.
-* **Quick Note-Taking & Ideation:** A space to quickly jot down thoughts, create mind maps, or plan projects.
-
-## Current Features
-
-EduBoard currently supports the following functionalities:
-
-* **Drawing Tools:**
-    * **Pen:** Freehand drawing with selectable colors and line widths.
-    * **Eraser:** Erase pen strokes.
-* **Sticky Notes:**
-    * Create digital sticky notes on the canvas.
-    * Add text directly onto the notes.
-    * Move sticky notes around the canvas.
-* **Canvas Management:**
-    * **Undo/Redo:** Step backward or forward through your recent actions.
-    * **Clear Frame:** Erase all content from the canvas.
-    * **Responsive Canvas:** Adapts to your browser window size.
-* **Export:**
-    * **Download as PNG:** Save your current board as a PNG image file.
+* **Versatile Drawing Tools:**
+    * **Pen:** Smooth freehand drawing with selectable colors and line widths.
+    * **Eraser:** Easily clear pen strokes.
+* **Rich Content Creation:**
+    * **Sticky Notes:** Add, edit, and move digital sticky notes.
+    * **Text Tool:** Insert formatted text directly onto the canvas.
+    * **Shapes:** Draw rectangles, circles, lines, and arrows to structure information.
+* **Element Management:**
+    * **Selection Tool:** Select, move, and manage elements on the board.
+    * **Delete Selected:** Remove selected elements from the canvas.
+* **Real-Time Collaboration (Actively in Development):**
+    * The next major step for EduBoard is to enable multiple users to work together on the same board simultaneously!
+* **Efficient Canvas Control:**
+    * **Undo/Redo:** Navigate through your action history.
+    * **Clear Frame:** Instantly reset the canvas.
+    * **Responsive Design:** Adapts to various screen sizes for a seamless experience.
+* **Export & Share:**
+    * **Download as PNG:** Save your work as a high-quality image.
 
 ## Getting Started
 
-To start using EduBoard, simply visit the live link above. The interface is designed to be intuitive:
+1.  Visit the **Live Demo** link above.
+2.  Select your desired tool from the toolbar.
+3.  Click and drag on the canvas to create!
+4.  Use options for colors, line width, and font size to customize.
 
-1.  **Select a tool** from the toolbar (e.g., Pen, Sticky Note).
-2.  **Interact with the canvas** to draw, add notes, or erase.
-3.  Use the **color palette** and **line width** options to customize your pen.
-4.  Utilize the **action buttons** (Undo, Redo, Clear, Download) as needed.
+## Tech Stack & Contribution
 
-## Development and Contribution
+EduBoard is built with **ReactJS**. We believe in the power of open-source and warmly welcome contributions! Whether it's a bug report, feature suggestion, or a pull request, your input is valuable.
 
-EduBoard is an open-source project built with ReactJS. I believe in the power of community collaboration and welcome contributions of all kinds, from bug reports and feature suggestions to code contributions.
-
-* **Pull Requests:** If you'd like to contribute, please feel free to fork the repository and submit a pull request.
+* **Fork the Repository & Submit a Pull Request:** (Link to your GitHub repo)
 
 ## Attribution
 
 EduBoard is developed and maintained by:
+**Sai Gattupalli, College of Education, University of Massachusetts Amherst.**
 
-Sai Gattupalli, College of Education, University of Massachusetts Amherst.
-
-This project benefits from the rich ecosystem of open-source software and aims to contribute back to that community.
-
-## Future Enhancements
-
-I am continuously thinking about how to improve EduBoard. Some of the features planned for future development include:
-
-* Real-time multi-user collaboration.
-* Additional drawing tools (e.g., shapes, text boxes, highlighter).
-* Advanced object manipulation (select, resize, rotate).
-* Customizable backgrounds.
-* Frame management (multiple pages).
-* PDF export.
-
-Stay tuned for updates!
+This project aims to contribute to the educational technology community.
 
 ## License
 
 EduBoard is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)**.
-
-This means you are free to:
-
-* **Share** — copy and redistribute the material in any medium or format.
-* **Adapt** — remix, transform, and build upon the material.
-
-Under the following terms:
-
-* **Attribution** — You must give appropriate credit to Sai Gattupalli (College of Education, University of Massachusetts Amherst), provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests endorsement of you or your use.
-* **NonCommercial** — You may not use the material for commercial purposes.
-
-For the full legal code and more details, please visit:
-[http://creativecommons.org/licenses/by-nc/4.0/](http://creativecommons.org/licenses/by-nc/4.0/)
-
----
+[Learn more: http://creativecommons.org/licenses/by-nc/4.0/](http://creativecommons.org/licenses/by-nc/4.0/)

@@ -67,8 +67,9 @@ const Canvas = forwardRef(({
     const clientY = event.clientY || (event.touches && event.touches[0].clientY);
     const x = clientX - rect.left;
     const y = clientY - rect.top;
-    setMousePosition({ x: Math.round(x), y: Math.round(y) });
-    return { x, y };
+    const newMousePos = { x: Math.round(x), y: Math.round(y) };
+    setMousePosition(newMousePos);
+    return newMousePos;
   };
 
   const drawShape = (context, type, startX, startY, endX, endY, options = {}) => {
@@ -77,7 +78,7 @@ const Canvas = forwardRef(({
     context.lineWidth = options.lineWidth || lineWidth;
     context.lineCap = 'round';
     context.lineJoin = 'round';
-    // Ensure GCO is source-over for drawing shapes unless specified otherwise
+    
     const originalGCO = context.globalCompositeOperation;
     context.globalCompositeOperation = 'source-over';
 
@@ -107,7 +108,7 @@ const Canvas = forwardRef(({
         context.lineTo(endX, endY);
         context.stroke();
         const angle = Math.atan2(endY - startY, endX - startX);
-        const arrowLength = Math.min(20, Math.max(10, options.lineWidth * 3)); // Arrowhead size based on line width
+        const arrowLength = Math.min(20, Math.max(10, options.lineWidth * 3));
         context.beginPath();
         context.moveTo(endX, endY);
         context.lineTo(endX - arrowLength * Math.cos(angle - Math.PI / 6), endY - arrowLength * Math.sin(angle - Math.PI / 6));
@@ -117,17 +118,18 @@ const Canvas = forwardRef(({
         break;
       default: break;
     }
-    context.globalCompositeOperation = originalGCO; // Restore GCO
+    context.globalCompositeOperation = originalGCO;
   };
 
   const redrawAll = (context) => {
     if (!context || !context.canvas) return;
-    const GCO_backup = context.globalCompositeOperation; // Backup GCO
-    context.globalCompositeOperation = 'source-over'; // Ensure clearing happens in normal mode
+    
+    const GCO_backup_main = context.globalCompositeOperation;
+    context.globalCompositeOperation = 'source-over';
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-    context.globalCompositeOperation = GCO_backup; // Restore GCO for element drawing
+    context.globalCompositeOperation = GCO_backup_main;
 
     elements.forEach(element => {
       const originalGCO = context.globalCompositeOperation;
@@ -176,7 +178,7 @@ const Canvas = forwardRef(({
       } else if (element.type === 'rectangle' || element.type === 'circle' || element.type === 'line' || element.type === 'arrow') {
         context.globalCompositeOperation = 'source-over';
         drawShape(context, element.type, element.x, element.y, 
-                  element.type === 'rectangle' ? element.x + element.width : element.endX, // Adjust for rect/circle vs line/arrow
+                  element.type === 'rectangle' ? element.x + element.width : element.endX,
                   element.type === 'rectangle' ? element.y + element.height : element.endY,
                   { strokeColor: element.strokeColor, fillColor: element.fillColor, lineWidth: element.lineWidth, radius: element.radius });
       } else if (element.type === 'text') {
@@ -187,7 +189,7 @@ const Canvas = forwardRef(({
           context.fillText(element.text || '', element.x, element.y);
         }
       }
-      context.globalCompositeOperation = originalGCO; // Restore GCO after each element
+      context.globalCompositeOperation = originalGCO; 
 
       if (selectedElements.includes(element.id)) {
         context.save();
@@ -211,18 +213,49 @@ const Canvas = forwardRef(({
         context.restore();
       }
     });
-    context.globalCompositeOperation = 'source-over'; // Ensure GCO is source-over after all elements
+    
+    context.globalCompositeOperation = 'source-over'; // Ensure GCO is source-over for previews
 
+    // Draw current live stroke (pen/eraser)
+    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser') && currentPath.length > 0) {
+      const originalGCO = context.globalCompositeOperation;
+      context.globalCompositeOperation = selectedTool === 'eraser' ? 'destination-out' : 'source-over';
+      context.strokeStyle = selectedTool === 'eraser' ? 'rgba(0,0,0,1)' : strokeColor;
+      context.lineWidth = selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+
+      context.beginPath();
+      currentPath.forEach((point, index) => {
+        if (index === 0) {
+          context.moveTo(point.x, point.y);
+        } else {
+          context.lineTo(point.x, point.y);
+        }
+      });
+      context.stroke();
+      context.globalCompositeOperation = originalGCO;
+    }
+
+    // Draw current live shape (rectangle, circle, etc.)
     if (currentShape && shapeStartPoint) {
+      // drawShape handles its own GCO internally if needed, but default to source-over here
+      const GCO_shape_preview = context.globalCompositeOperation;
       context.globalCompositeOperation = 'source-over';
       drawShape(context, currentShape, shapeStartPoint.x, shapeStartPoint.y, mousePosition.x, mousePosition.y, { strokeColor, fillColor, lineWidth });
+      context.globalCompositeOperation = GCO_shape_preview;
     }
+
+    // Draw selection rectangle
     if (selectionRect && isSelecting) {
-      context.save(); context.globalCompositeOperation = 'source-over';
+      context.save();
+      context.globalCompositeOperation = 'source-over';
       context.strokeStyle = '#007bff'; context.lineWidth = 1; context.setLineDash([5, 5]);
       context.strokeRect(selectionRect.startX, selectionRect.startY, selectionRect.endX - selectionRect.startX, selectionRect.endY - selectionRect.startY);
       context.restore();
     }
+
+    // Draw canvas dimensions and mouse coordinates
     const dimText = `${context.canvas.width}x${context.canvas.height}`;
     context.fillStyle = '#888888'; context.font = '10px Arial';
     const textWidthDim = context.measureText(dimText).width;
@@ -244,21 +277,26 @@ const Canvas = forwardRef(({
         if (container && contextRef.current) {
           canvas.width = container.clientWidth;
           canvas.height = container.clientHeight;
-          redrawAll(contextRef.current);
+          // redrawAll will be called by the main useEffect due to isResizingCanvas changing
         }
-        setIsResizingCanvas(false);
+        setIsResizingCanvas(false); 
       }, 100);
     };
-    handleResize();
+    handleResize(); // Initial resize
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(resizeTimeout); }
-  }, []);
+  }, []); // Removed redrawAll from here, will be handled by the main effect
 
   useEffect(() => {
     if (contextRef.current && !isResizingCanvas) {
       redrawAll(contextRef.current);
     }
-  }, [elements, isResizingCanvas, editingElementId, selectedElements, currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting, strokeColor, fillColor, lineWidth, fontSize]);
+  }, [
+    elements, isResizingCanvas, editingElementId, selectedElements,
+    currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting,
+    strokeColor, fillColor, lineWidth, fontSize,
+    currentPath, isDrawing, selectedTool // Added for live stroke drawing
+  ]);
 
   const getElementAtPosition = (x, y) => {
     for (let i = elements.length - 1; i >= 0; i--) {
@@ -274,7 +312,7 @@ const Canvas = forwardRef(({
       if (el.type === 'line' || el.type === 'arrow') {
         const { x: x1, y: y1, endX: x2, endY: y2, lineWidth: lw } = el;
         const lenSq = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2);
-        const effectiveLineWidth = (lw / 2 + 3); // Tolerance
+        const effectiveLineWidth = (lw / 2 + 3); 
         if (lenSq === 0) { if (Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2)) < effectiveLineWidth) return el; }
         else {
           let t = ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / lenSq;
@@ -318,8 +356,7 @@ const Canvas = forwardRef(({
     if (selectedTool === 'pen' || selectedTool === 'eraser') {
       setSelectedElements([]);
       setIsDrawing(true);
-      setCurrentPath([{ x, y }]); // Start new path with current point
-      // No drawing commands here; handleMouseMove will draw segments
+      setCurrentPath([{ x, y }]); 
     } else if (selectedTool === 'select') {
       const clickedElement = getElementAtPosition(x, y);
       if (clickedElement) {
@@ -329,7 +366,7 @@ const Canvas = forwardRef(({
         const selectedElemsData = elements.filter(el => currentSelectedIds.includes(el.id)).map(el => ({ id: el.id, x: el.x, y: el.y, endX: el.endX, endY: el.endY }));
         setDraggingElement({ ids: currentSelectedIds, initialMouseX: x, initialMouseY: y, initialPositions: selectedElemsData });
       } else {
-        setIsSelecting(true); setShapeStartPoint({ x, y }); // Use shapeStartPoint for selection rect
+        setIsSelecting(true); setShapeStartPoint({ x, y }); 
         if (!event.shiftKey) setSelectedElements([]);
       }
     } else if (['rectangle', 'circle', 'line', 'arrow'].includes(selectedTool)) {
@@ -344,7 +381,6 @@ const Canvas = forwardRef(({
       onDrawingOrElementComplete(newSticky); setTimeout(() => activateStickyNoteEditing(newSticky), 0);
     }
 
-    // Double click logic for editing
     const clickedElementForEdit = getElementAtPosition(x, y);
     if (clickedElementForEdit) {
         const now = Date.now();
@@ -363,55 +399,35 @@ const Canvas = forwardRef(({
 
   const handleMouseMove = (event) => {
     event.preventDefault();
-    const { x, y } = getMousePosition(event);
-    const context = contextRef.current;
-    if (editingElementId || !context) return;
+    const { x, y } = getMousePosition(event); // This updates mousePosition state -> triggers redrawAll
+    if (editingElementId) return;
 
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
-      if (currentPath.length === 0) return; // Should not happen if mousedown sets it
-
-      const lastPoint = currentPath[currentPath.length - 1];
-      const newPoint = { x, y };
-
-      // Set canvas context properties for this segment
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-      context.lineWidth = selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth;
-      context.strokeStyle = selectedTool === 'eraser' ? 'rgba(0,0,0,1)' : strokeColor;
-      context.globalCompositeOperation = selectedTool === 'eraser' ? 'destination-out' : 'source-over';
-
-      context.beginPath(); // Crucial: Start new path for each segment
-      context.moveTo(lastPoint.x, lastPoint.y);
-      context.lineTo(newPoint.x, newPoint.y);
-      context.stroke();
-
-      setCurrentPath(prev => [...prev, newPoint]);
+      setCurrentPath(prev => [...prev, { x, y }]); // Update path state -> triggers redrawAll
     } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
-      // Visual feedback for dragging is handled by redrawAll using mousePosition dependency.
-      // This function just ensures mousePosition is updated.
+      // Visual feedback handled by redrawAll due to mousePosition update
     } else if (isSelecting && shapeStartPoint) {
-      setSelectionRect({ startX: shapeStartPoint.x, startY: shapeStartPoint.y, endX: x, endY: y });
+      setSelectionRect({ startX: shapeStartPoint.x, startY: shapeStartPoint.y, endX: x, endY: y }); // Update state -> triggers redrawAll
     }
   };
 
   const handleMouseUp = (event) => {
     event.preventDefault();
-    const { x, y } = getMousePosition(event); // Use final position from getMousePosition
+    const { x, y } = getMousePosition(event); 
 
-    if (isDrawing) {
-      setIsDrawing(false);
-      if (currentPath.length > 1) { // Only save if it's more than a dot
+    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
+      setIsDrawing(false); // Triggers redrawAll (currentPath will not be drawn as live)
+      if (currentPath.length > 1) { 
         onDrawingOrElementComplete({
           type: 'stroke',
-          color: selectedTool === 'pen' ? strokeColor : 'rgba(0,0,0,0)', // Store actual stroke color
+          color: selectedTool === 'pen' ? strokeColor : 'rgba(0,0,0,0)', 
           lineWidth: selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth,
           path: currentPath,
           isEraser: selectedTool === 'eraser',
           id: Date.now()
         });
       }
-      setCurrentPath([]); // Clear path for next stroke
-      if (contextRef.current) contextRef.current.globalCompositeOperation = 'source-over'; // Reset GCO
+      setCurrentPath([]); // Triggers redrawAll (currentPath is empty)
     } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
       const deltaX = x - draggingElement.initialMouseX;
       const deltaY = y - draggingElement.initialMouseY;
@@ -445,7 +461,7 @@ const Canvas = forwardRef(({
         if (event.shiftKey || (event.touches && event.touches.length > 1)) { setSelectedElements(prev => [...new Set([...prev, ...newSelectedIds])]); }
         else { setSelectedElements(newSelectedIds); }
       } else if (!(event.shiftKey || (event.touches && event.touches.length > 1))) {
-        // setSelectedElements([]); // Already handled in mousedown
+        // setSelectedElements([]); // Already handled in mousedown if no shift
       }
       setIsSelecting(false); setSelectionRect(null); setShapeStartPoint(null);
     }
@@ -453,7 +469,7 @@ const Canvas = forwardRef(({
 
   let canvasCursor = 'auto';
   if (editingElementId) canvasCursor = 'text';
-  else if (isDrawing) canvasCursor = selectedTool === 'eraser' ? `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1'><circle cx='12' cy='12' r='10'/></svg>") 12 12, auto` : 'crosshair';
+  else if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) canvasCursor = 'crosshair';
   else if (draggingElement) canvasCursor = 'grabbing';
   else if (selectedTool === 'pen') canvasCursor = 'crosshair';
   else if (selectedTool === 'eraser') canvasCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1'><circle cx='12' cy='12' r='10'/></svg>") 12 12, auto`;
@@ -479,11 +495,14 @@ const Canvas = forwardRef(({
       <canvas
         ref={canvasRef} id="main-canvas" style={{ cursor: canvasCursor }}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
-        onMouseLeave={() => {
-            // If mouse leaves while drawing/dragging, treat as mouse up
+        onMouseLeave={(event) => { // Pass event to handleMouseUp
             if (isDrawing || draggingElement || isSelecting || currentShape) {
-                // Simulate mouse up at the last known position
-                 handleMouseUp({ preventDefault: () => {}, clientX: mousePosition.x + (canvasRef.current?.getBoundingClientRect().left || 0), clientY: mousePosition.y + (canvasRef.current?.getBoundingClientRect().top || 0), touches: event.touches }); // pass touches for consistency
+                 handleMouseUp({ 
+                    preventDefault: () => {}, 
+                    clientX: mousePosition.x + (canvasRef.current?.getBoundingClientRect().left || 0), 
+                    clientY: mousePosition.y + (canvasRef.current?.getBoundingClientRect().top || 0),
+                    touches: event.touches // Pass original touches if available
+                });
             }
         }}
         onTouchStart={handleMouseDown} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}

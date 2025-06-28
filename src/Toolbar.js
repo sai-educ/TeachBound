@@ -4,7 +4,7 @@ import './Toolbar.css';
 import {
   PenTool, Eraser, StickyNote as StickyNoteIcon, Palette,
   Undo, Redo, Trash2, Download, Square, Circle,
-  Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes
+  Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes, Settings
 } from 'lucide-react';
 
 const ACCESSIBLE_COLORS = [
@@ -54,12 +54,17 @@ const Toolbar = ({
   lineWidth, setLineWidth,
   fontSize, setFontSize,
   stickyNoteColor, setStickyNoteColor,
+  toolbarDisplayMode, setToolbarDisplayMode,
   onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDownloadPDF, onDeleteSelected
 }) => {
   const [showShapesDropdown, setShowShapesDropdown] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [tempDisplayMode, setTempDisplayMode] = useState(toolbarDisplayMode);
+  
   const shapesDropdownRef = useRef(null);
   const downloadDropdownRef = useRef(null);
+  const settingsPanelRef = useRef(null);
 
   const shapeTools = [
     { name: 'rectangle', icon: <Square size={14} className="tool-icon" />, label: 'Rectangle' },
@@ -103,6 +108,9 @@ const Toolbar = ({
       if (downloadDropdownRef.current && !downloadDropdownRef.current.contains(event.target)) {
         setShowDownloadDropdown(false);
       }
+      if (settingsPanelRef.current && !settingsPanelRef.current.contains(event.target)) {
+        setShowSettingsPanel(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -123,6 +131,35 @@ const Toolbar = ({
     setShowDownloadDropdown(false);
   };
 
+  const handleSettingsOk = () => {
+    setToolbarDisplayMode(tempDisplayMode);
+    setShowSettingsPanel(false);
+  };
+
+  const handleSettingsCancel = () => {
+    setTempDisplayMode(toolbarDisplayMode);
+    setShowSettingsPanel(false);
+  };
+
+  // Render button content based on display mode
+  const renderButtonContent = (tool) => {
+    switch (toolbarDisplayMode) {
+      case 'icons':
+        return tool.icon;
+      case 'icons-text':
+        return (
+          <>
+            {tool.icon}
+            <span className="tool-label">{tool.label}</span>
+          </>
+        );
+      case 'text':
+        return <span className="tool-label">{tool.label}</span>;
+      default:
+        return tool.icon;
+    }
+  };
+
   return (
     <div className="toolbar-wrapper">
       {/* Main Tools Bar */}
@@ -132,22 +169,34 @@ const Toolbar = ({
           {mainTools.map((tool) => (
             <button
               key={tool.name}
-              className={`tool-button ${selectedTool === tool.name ? 'active' : ''}`}
+              className={`tool-button ${selectedTool === tool.name ? 'active' : ''} ${toolbarDisplayMode}`}
               onClick={() => setSelectedTool(tool.name)}
               title={tool.label}
             >
-              {tool.icon}
+              {renderButtonContent(tool)}
             </button>
           ))}
 
           {/* Shapes Dropdown */}
           <div className="dropdown-container" ref={shapesDropdownRef}>
             <button
-              className={`tool-button dropdown-trigger ${showShapeOptions ? 'active' : ''}`}
+              className={`tool-button dropdown-trigger ${showShapeOptions ? 'active' : ''} ${toolbarDisplayMode}`}
               onClick={() => setShowShapesDropdown(!showShapesDropdown)}
               title="Shapes"
             >
-              {getCurrentShapeIcon()} <ChevronDown size={12} />
+              {toolbarDisplayMode === 'icons' ? (
+                <>
+                  {getCurrentShapeIcon()} <ChevronDown size={12} />
+                </>
+              ) : toolbarDisplayMode === 'icons-text' ? (
+                <>
+                  {getCurrentShapeIcon()} <span className="tool-label">Shapes</span> <ChevronDown size={12} />
+                </>
+              ) : (
+                <>
+                  <span className="tool-label">Shapes</span> <ChevronDown size={12} />
+                </>
+              )}
             </button>
             {showShapesDropdown && (
               <div className="dropdown-menu shapes-dropdown">
@@ -219,25 +268,38 @@ const Toolbar = ({
           {actionTools.map((tool) => (
             <button
               key={tool.name}
-              className="tool-button action-button"
+              className={`tool-button action-button ${toolbarDisplayMode}`}
               onClick={tool.action}
               disabled={tool.disabled}
               title={tool.label}
             >
-              {tool.icon}
+              {renderButtonContent(tool)}
             </button>
           ))}
         </div>
 
-        {/* Download Button - Right Aligned */}
-        <div className="tool-group download-group">
+        {/* Download and Settings - Right Aligned */}
+        <div className="tool-group download-settings-group">
+          {/* Download Button */}
           <div className="dropdown-container" ref={downloadDropdownRef}>
             <button
-              className="tool-button download-button"
+              className={`tool-button download-button ${toolbarDisplayMode}`}
               onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
               title="Download"
             >
-              <Download size={14} /> <ChevronDown size={12} />
+              {toolbarDisplayMode === 'icons' ? (
+                <>
+                  <Download size={14} /> <ChevronDown size={12} />
+                </>
+              ) : toolbarDisplayMode === 'icons-text' ? (
+                <>
+                  <Download size={14} /> <span className="tool-label">Download</span> <ChevronDown size={12} />
+                </>
+              ) : (
+                <>
+                  <span className="tool-label">Download</span> <ChevronDown size={12} />
+                </>
+              )}
             </button>
             {showDownloadDropdown && (
               <div className="dropdown-menu download-dropdown">
@@ -257,6 +319,70 @@ const Toolbar = ({
                   <div className="dropdown-section-title">PDF Document</div>
                   <button className="dropdown-item" onClick={() => handleDownloadSelect('pdf')}>
                     <Download size={14} /> Download as PDF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Settings Button */}
+          <div className="dropdown-container" ref={settingsPanelRef}>
+            <button
+              className={`tool-button settings-button ${toolbarDisplayMode}`}
+              onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+              title="Settings"
+            >
+              <Settings size={14} />
+            </button>
+            
+            {showSettingsPanel && (
+              <div className="settings-panel">
+                <div className="settings-header">
+                  <h3>Toolbar Display Settings</h3>
+                </div>
+                <div className="settings-content">
+                  <div className="setting-group">
+                    <label className="setting-label">Display Mode:</label>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input
+                          type="radio"
+                          name="displayMode"
+                          value="icons"
+                          checked={tempDisplayMode === 'icons'}
+                          onChange={(e) => setTempDisplayMode(e.target.value)}
+                        />
+                        <span>Icons Only (Compact)</span>
+                      </label>
+                      <label className="radio-option">
+                        <input
+                          type="radio"
+                          name="displayMode"
+                          value="icons-text"
+                          checked={tempDisplayMode === 'icons-text'}
+                          onChange={(e) => setTempDisplayMode(e.target.value)}
+                        />
+                        <span>Icons with Text</span>
+                      </label>
+                      <label className="radio-option">
+                        <input
+                          type="radio"
+                          name="displayMode"
+                          value="text"
+                          checked={tempDisplayMode === 'text'}
+                          onChange={(e) => setTempDisplayMode(e.target.value)}
+                        />
+                        <span>Text Only</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="settings-footer">
+                  <button className="settings-btn cancel-btn" onClick={handleSettingsCancel}>
+                    Cancel
+                  </button>
+                  <button className="settings-btn ok-btn" onClick={handleSettingsOk}>
+                    OK
                   </button>
                 </div>
               </div>

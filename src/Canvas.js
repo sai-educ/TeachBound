@@ -909,24 +909,23 @@ const Canvas = forwardRef(({
     }
   };
 
-  // Cursor styling
+  // Cursor styling - Fixed eraser cursor
   let canvasCursor = 'auto';
   if (editingElementId) {
     canvasCursor = 'text';
-  } else if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
-    canvasCursor = 'crosshair';
-  } else if (draggingElement) {
-    canvasCursor = 'grabbing';
   } else if (selectedTool === 'pen') {
     canvasCursor = 'crosshair';
   } else if (selectedTool === 'eraser') {
-    canvasCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='2'><circle cx='12' cy='12' r='8'/></svg>") 12 12, auto`;
+    // Fixed eraser cursor - always show white circle
+    canvasCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='8' fill='white' stroke='black' stroke-width='2'/></svg>") 10 10, auto`;
   } else if (selectedTool === 'sticky') {
     canvasCursor = 'cell';
   } else if (selectedTool === 'select') {
     canvasCursor = 'default';
   } else if (['rectangle', 'circle', 'line', 'arrow', 'text'].includes(selectedTool)) {
     canvasCursor = 'crosshair';
+  } else if (draggingElement) {
+    canvasCursor = 'grabbing';
   }
 
   // Keyboard shortcuts

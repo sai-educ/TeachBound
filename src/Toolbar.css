@@ -9,6 +9,8 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
   font-family: 'Open Sans', Arial, sans-serif;
+  position: relative;
+  z-index: 100;
 }
 
 .toolbar-section {
@@ -50,9 +52,12 @@
   flex-shrink: 0;
 }
 
-.download-group {
+.download-settings-group {
   margin-left: auto;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Options Section */
@@ -87,7 +92,7 @@
   flex-shrink: 0;
 }
 
-/* Tool Buttons - 50% Smaller */
+/* Tool Buttons - Base Styles */
 .tool-button {
   display: flex;
   align-items: center;
@@ -106,6 +111,32 @@
   font-family: 'Open Sans', Arial, sans-serif;
   min-height: 24px;
   min-width: 24px;
+}
+
+/* Display Mode Variations */
+.tool-button.icons {
+  min-width: 24px;
+  padding: 4px 6px;
+}
+
+.tool-button.icons-text {
+  min-width: auto;
+  padding: 4px 8px;
+  gap: 4px;
+}
+
+.tool-button.text {
+  min-width: auto;
+  padding: 4px 8px;
+}
+
+.tool-button.text .tool-icon {
+  display: none;
+}
+
+.tool-label {
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .tool-button:not(:disabled):not(.active):hover {
@@ -146,18 +177,38 @@
   border-color: #d1d5db;
 }
 
-/* Download Button Styling */
+/* Download Button Styling - Always Green */
 .download-button {
-  background-color: #10b981;
-  color: white;
-  border-color: #059669;
+  background-color: #10b981 !important;
+  color: white !important;
+  border-color: #059669 !important;
   font-weight: 600;
   padding: 4px 8px;
 }
 
 .download-button:hover {
-  background-color: #059669;
-  border-color: #047857;
+  background-color: #10b981 !important;
+  color: white !important;
+  border-color: #059669 !important;
+  transform: translateY(-1px);
+}
+
+.download-button:active {
+  background-color: #10b981 !important;
+  color: white !important;
+}
+
+/* Settings Button Styling */
+.settings-button {
+  background-color: #6b7280;
+  color: white;
+  border-color: #4b5563;
+}
+
+.settings-button:hover {
+  background-color: #4b5563;
+  color: white;
+  border-color: #374151;
   transform: translateY(-1px);
 }
 
@@ -166,7 +217,7 @@
   flex-shrink: 0;
 }
 
-/* Dropdown Styles */
+/* Dropdown Styles - Fixed Positioning */
 .dropdown-container {
   position: relative;
   display: inline-block;
@@ -178,15 +229,15 @@
 
 .dropdown-menu {
   position: absolute;
-  top: 100%;
+  bottom: 100%; /* Position above the toolbar */
   left: 0;
-  z-index: 1000;
+  z-index: 2000; /* Higher z-index */
   min-width: 180px;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  margin-top: 2px;
+  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.08);
+  margin-bottom: 4px;
   padding: 4px 0;
   max-height: 300px;
   overflow-y: auto;
@@ -254,6 +305,127 @@
   background-color: #f9fafb;
   margin: 0 0 2px 0;
   font-family: 'Open Sans', Arial, sans-serif;
+}
+
+/* Settings Panel Styles */
+.settings-panel {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  z-index: 2000;
+  width: 280px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15), 0 6px 12px -2px rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
+  font-family: 'Open Sans', Arial, sans-serif;
+}
+
+.settings-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  border-radius: 8px 8px 0 0;
+}
+
+.settings-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: 'Open Sans', Arial, sans-serif;
+}
+
+.settings-content {
+  padding: 16px;
+}
+
+.setting-group {
+  margin-bottom: 16px;
+}
+
+.setting-group:last-child {
+  margin-bottom: 0;
+}
+
+.setting-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-family: 'Open Sans', Arial, sans-serif;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #374151;
+  font-family: 'Open Sans', Arial, sans-serif;
+}
+
+.radio-option input[type="radio"] {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.radio-option:hover {
+  color: #1f2937;
+}
+
+.settings-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background-color: #f9fafb;
+  border-radius: 0 0 8px 8px;
+}
+
+.settings-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  font-family: 'Open Sans', Arial, sans-serif;
+  border: 1px solid;
+}
+
+.cancel-btn {
+  background-color: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.cancel-btn:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.ok-btn {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.ok-btn:hover {
+  background-color: #2563eb;
+  border-color: #1d4ed8;
 }
 
 /* Color Palette - 50% Smaller */
@@ -329,7 +501,7 @@
     gap: 4px;
   }
   
-  .download-group {
+  .download-settings-group {
     margin-left: 0;
     order: 1;
     width: 100%;
@@ -359,7 +531,7 @@
     width: 100%;
   }
   
-  .download-group {
+  .download-settings-group {
     margin-left: 0;
     align-self: center;
     width: auto;
@@ -374,7 +546,8 @@
     min-width: 160px;
   }
   
-  .download-dropdown {
+  .download-dropdown,
+  .settings-panel {
     right: auto;
     left: 50%;
     transform: translateX(-50%);
@@ -391,6 +564,10 @@
   
   .options-label {
     font-size: 10px;
+  }
+
+  .settings-panel {
+    width: 260px;
   }
 }
 
@@ -422,5 +599,9 @@
   
   .separator {
     margin: 0 2px;
+  }
+
+  .settings-panel {
+    width: 240px;
   }
 }

@@ -1,10 +1,10 @@
 /* src/Toolbar.css */
 .toolbar-wrapper {
   display: flex;
-  flex-direction: column; /* Stack tool sections vertically */
+  flex-direction: column;
   background-color: #ffffff;
-  padding: 8px;
-  margin: 10px; /* Margin around the entire toolbar area */
+  padding: 12px;
+  margin: 10px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
@@ -14,18 +14,44 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px; /* Gap between groups within a section */
-  padding: 5px 0; /* Padding for each section */
+  gap: 12px;
+  padding: 8px 0;
 }
 
 .toolbar-section:not(:last-child) {
-  border-bottom: 1px solid #e0e0e0; /* Separator line between sections */
-  margin-bottom: 5px;
-  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
 }
 
+/* Main Toolbar - Tools and Download */
+.main-toolbar {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.main-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.download-group {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Options Section */
+.options-section {
+  justify-content: flex-start;
+}
+
+/* Action Tools Section */
 .action-tools-section {
- justify-content: flex-start; /* Align action buttons to the start */
+  justify-content: flex-start;
 }
 
 .tool-group {
@@ -37,115 +63,344 @@
 .options-label {
   font-size: 13px;
   color: #555;
-  margin-right: 4px;
+  margin-right: 8px;
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .separator {
   width: 1px;
-  height: 28px;
+  height: 32px;
   background-color: #dee2e6;
-  margin: 0 8px; /* More spacing for separator */
+  margin: 0 8px;
+  flex-shrink: 0;
 }
 
+/* Tool Buttons */
 .tool-button {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px; /* Consistent padding */
-  border: 1px solid #d1d5db; /* Tailwind gray-300 */
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  background-color: #f9fafb; /* Tailwind gray-50 */
+  background-color: #f9fafb;
   cursor: pointer;
   font-size: 14px;
-  color: #374151; /* Tailwind gray-700 */
-  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  color: #374151;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+  font-weight: 500;
 }
+
 .tool-button:not(:disabled):not(.active):hover {
-  background-color: #f3f4f6; /* Tailwind gray-100 */
-  border-color: #9ca3af; /* Tailwind gray-400 */
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
 }
+
 .tool-button.active {
-  background-color: #3b82f6; /* Tailwind blue-500 */
-  color: white;
-  border-color: #2563eb; /* Tailwind blue-600 */
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-.tool-button.active:hover {
-  background-color: #3b82f6; /* Keep blue on hover */
+  background-color: #3b82f6;
   color: white;
   border-color: #2563eb;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
+
+.tool-button.active:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
 .tool-button.active .tool-icon {
   stroke: white;
 }
+
 .tool-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.action-button { /* Specific styling for action buttons if needed, e.g., less prominent */
+/* Action Button Styling */
+.action-button {
   background-color: #fff;
+  border-color: #e5e7eb;
 }
+
 .action-button:not(:disabled):hover {
-  background-color: #f3f4f6;
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+/* Download Button Styling */
+.download-button {
+  background-color: #10b981;
+  color: white;
+  border-color: #059669;
+  font-weight: 600;
+}
+
+.download-button:hover {
+  background-color: #059669;
+  border-color: #047857;
+  transform: translateY(-1px);
 }
 
 .tool-icon {
   stroke-width: 2;
+  flex-shrink: 0;
 }
 
+.tool-label {
+  font-size: 14px;
+}
+
+/* Dropdown Styles */
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-trigger {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  min-width: 220px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  margin-top: 4px;
+  padding: 8px 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.shapes-dropdown {
+  left: 0;
+  min-width: 180px;
+}
+
+.download-dropdown {
+  right: 0;
+  left: auto;
+  min-width: 240px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+  font-weight: 500;
+}
+
+.dropdown-item:hover {
+  background-color: #f3f4f6;
+}
+
+.dropdown-item.active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.dropdown-item.active .tool-icon {
+  stroke: white;
+}
+
+.dropdown-section {
+  padding: 4px 0;
+}
+
+.dropdown-section:not(:last-child) {
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+}
+
+.dropdown-section-title {
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #f9fafb;
+  margin: 0 0 4px 0;
+}
+
+/* Color Palette */
 .color-palette {
   display: flex;
   align-items: center;
-  gap: 6px; /* Slightly more gap */
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .color-button {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 2px solid #e5e7eb; /* Tailwind gray-200 or transparent */
+  border: 2px solid #e5e7eb;
   cursor: pointer;
-  transition: border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  position: relative;
 }
+
 .color-button:hover {
   transform: scale(1.1);
   border-color: #9ca3af;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
+
 .color-button.active {
-  border-color: #3b82f6; /* Tailwind blue-500 */
+  border-color: #3b82f6;
   box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
+  transform: scale(1.05);
 }
 
 .fill-button {
-  border-radius: 4px !important;
+  border-radius: 6px !important;
 }
 
+/* Line Width Selection */
 .line-width-selection {
   display: flex;
   align-items: center;
-  gap: 5px;
-}
-.line-width-button {
-  min-width: 38px;
-  justify-content: center;
-  padding: 6px 8px; /* Adjust for visual balance */
-}
-.line-width-button span { /* The visual line indicator */
-    border-radius: 3px !important; /* Ensure it's rounded */
+  gap: 6px;
 }
 
+.line-width-button {
+  min-width: 44px;
+  justify-content: center;
+  padding: 8px 10px;
+}
+
+.line-preview {
+  border-radius: 3px !important;
+}
+
+/* Font Size Selection */
 .font-size-selection {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
+
 .font-size-button {
-  min-width: 50px;
+  min-width: 60px;
   justify-content: center;
-  padding: 6px 10px;
+  padding: 8px 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .main-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .download-group {
+    margin-left: 0;
+    order: 1;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .main-tools {
+    order: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .toolbar-wrapper {
+    margin: 5px;
+    padding: 8px;
+  }
+  
+  .main-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .main-tools {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .download-group {
+    margin-left: 0;
+    align-self: center;
+    width: auto;
+  }
+  
+  .tool-button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .tool-label {
+    display: none;
+  }
+  
+  .dropdown-menu {
+    min-width: 200px;
+  }
+  
+  .download-dropdown {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .color-button {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .separator {
+    height: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-tools {
+    gap: 4px;
+  }
+  
+  .tool-button {
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  
+  .options-label {
+    font-size: 12px;
+  }
+  
+  .color-button {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .tool-group {
+    gap: 6px;
+  }
 }

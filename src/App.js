@@ -5,8 +5,8 @@ import Toolbar from './Toolbar';
 import Canvas from './Canvas';
 
 // --- App Name & Slogan ---
-const APP_NAME = "EduBoard";
-// The slogan will now be constructed directly in the JSX to include the link
+const APP_NAME = "Teach Bound";
+const APP_SUBTITLE = "Digital White Board";
 
 function App() {
   const [selectedTool, setSelectedTool] = useState('pen');
@@ -14,6 +14,7 @@ function App() {
   const [fillColor, setFillColor] = useState('transparent');
   const [lineWidth, setLineWidth] = useState(5);
   const [fontSize, setFontSize] = useState(16);
+  const [stickyNoteColor, setStickyNoteColor] = useState('#FFFACD'); // Default yellow
 
   const [history, setHistory] = useState([[]]); // Array of element arrays
   const [historyStep, setHistoryStep] = useState(0);
@@ -36,8 +37,7 @@ function App() {
       return [...newHistorySlice, updatedElements];
     });
     setHistoryStep((prevStep) => prevStep + 1);
-  }, [historyStep]); // Removed 'history' from dependencies, as it causes issues with this pattern
-
+  }, [historyStep]);
 
   const handleDrawingOrElementComplete = useCallback((newElement) => {
     updateElementsAndHistory((prevElements) => {
@@ -119,13 +119,13 @@ function App() {
   const handleClearFrame = () => {
     const confirmed = window.confirm("Are you sure you want to clear the canvas? This action cannot be undone.");
     if (confirmed) {
-      // Clear the canvas and reset history
       setHistory([[]]);
       setHistoryStep(0);
     }
   };
   
-  const handleDownloadPNG = () => canvasRef.current?.downloadAsPNG();
+  const handleDownloadPNG = (scale = 1) => canvasRef.current?.downloadAsPNG(scale);
+  const handleDownloadPDF = () => canvasRef.current?.downloadAsPDF();
 
   const handleDeleteSelected = useCallback(() => {
     canvasRef.current?.deleteSelectedElements();
@@ -134,17 +134,19 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1 className="app-title">{APP_NAME}</h1>
-        {/* Updated slogan rendering to include a link */}
+        <div className="app-title-container">
+          <h1 className="app-title">{APP_NAME}</h1>
+          <span className="app-subtitle">{APP_SUBTITLE}</span>
+        </div>
         <p className="app-slogan">
-          A Jamboard alternative: 100% free to use, no ads, open source.{" "}
+          Professional digital whiteboard for education and collaboration.{" "}
           <a 
-            href="https://github.com/sai-educ/EduBoard" 
+            href="https://teachbound.com" 
             target="_blank" 
             rel="noopener noreferrer"
             className="slogan-link"
           >
-            Pull requests welcome!
+            Visit teachbound.com
           </a>
         </p>
       </header>
@@ -160,12 +162,15 @@ function App() {
           setLineWidth={setLineWidth}
           fontSize={fontSize}
           setFontSize={setFontSize}
+          stickyNoteColor={stickyNoteColor}
+          setStickyNoteColor={setStickyNoteColor}
           onUndo={handleUndo}
           onRedo={handleRedo}
           onClearFrame={handleClearFrame}
           canUndo={historyStep > 0}
           canRedo={historyStep < history.length - 1}
           onDownloadPNG={handleDownloadPNG}
+          onDownloadPDF={handleDownloadPDF}
           onDeleteSelected={handleDeleteSelected}
         />
         <Canvas
@@ -175,6 +180,7 @@ function App() {
           fillColor={fillColor}
           lineWidth={lineWidth}
           fontSize={fontSize}
+          stickyNoteColor={stickyNoteColor}
           elements={elements}
           onDrawingOrElementComplete={handleDrawingOrElementComplete}
           updateElementsAndHistory={updateElementsAndHistory}

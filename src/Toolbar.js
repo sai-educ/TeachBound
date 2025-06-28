@@ -1,16 +1,27 @@
 // src/Toolbar.js
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './Toolbar.css';
 import {
   PenTool, Eraser, StickyNote as StickyNoteIcon, Palette,
   Undo, Redo, Trash2, Download, Square, Circle,
-  Minus, ArrowRight, Type, MousePointer, Trash
+  Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes
 } from 'lucide-react';
 
 const ACCESSIBLE_COLORS = [
-  { name: 'Black', value: '#000000' }, { name: 'Red', value: '#D90429' },
-  { name: 'Blue', value: '#0077B6' }, { name: 'Green', value: '#06A77D' },
+  { name: 'Black', value: '#000000' }, 
+  { name: 'Red', value: '#D90429' },
+  { name: 'Blue', value: '#0077B6' }, 
+  { name: 'Green', value: '#06A77D' },
   { name: 'Purple', value: '#7209B7' },
+];
+
+const STICKY_NOTE_COLORS = [
+  { name: 'Yellow', value: '#FFFACD' }, 
+  { name: 'Pink', value: '#FFB6C1' },
+  { name: 'Light Blue', value: '#ADD8E6' }, 
+  { name: 'Light Green', value: '#90EE90' },
+  { name: 'Orange', value: '#FFE4B5' }, 
+  { name: 'Lavender', value: '#E6E6FA' },
 ];
 
 const FILL_COLORS = [
@@ -23,8 +34,10 @@ const FILL_COLORS = [
 ];
 
 const LINE_WIDTHS = [
-  { label: 'Thin', value: 2 }, { label: 'Medium', value: 5 },
-  { label: 'Thick', value: 10 }, { label: 'Extra Thick', value: 20 },
+  { label: 'Thin', value: 2 }, 
+  { label: 'Medium', value: 5 },
+  { label: 'Thick', value: 10 }, 
+  { label: 'Extra Thick', value: 20 },
 ];
 
 const FONT_SIZES = [
@@ -40,15 +53,13 @@ const Toolbar = ({
   fillColor, setFillColor,
   lineWidth, setLineWidth,
   fontSize, setFontSize,
-  onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDeleteSelected
+  stickyNoteColor, setStickyNoteColor,
+  onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDownloadPDF, onDeleteSelected
 }) => {
-  const mainTools = [
-    { name: 'select', icon: <MousePointer size={18} className="tool-icon" />, label: 'Select' },
-    { name: 'pen', icon: <PenTool size={18} className="tool-icon" />, label: 'Pen' },
-    { name: 'eraser', icon: <Eraser size={18} className="tool-icon" />, label: 'Eraser' },
-    { name: 'sticky', icon: <StickyNoteIcon size={18} className="tool-icon" />, label: 'Sticky Note' },
-    { name: 'text', icon: <Type size={18} className="tool-icon" />, label: 'Text' },
-  ];
+  const [showShapesDropdown, setShowShapesDropdown] = useState(false);
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
+  const shapesDropdownRef = useRef(null);
+  const downloadDropdownRef = useRef(null);
 
   const shapeTools = [
     { name: 'rectangle', icon: <Square size={18} className="tool-icon" />, label: 'Rectangle' },
@@ -57,23 +68,66 @@ const Toolbar = ({
     { name: 'arrow', icon: <ArrowRight size={18} className="tool-icon" />, label: 'Arrow' },
   ];
 
+  const mainTools = [
+    { name: 'select', icon: <MousePointer size={18} className="tool-icon" />, label: 'Select' },
+    { name: 'pen', icon: <PenTool size={18} className="tool-icon" />, label: 'Pen' },
+    { name: 'eraser', icon: <Eraser size={18} className="tool-icon" />, label: 'Eraser' },
+    { name: 'sticky', icon: <StickyNoteIcon size={18} className="tool-icon" />, label: 'Sticky Note' },
+    { name: 'text', icon: <Type size={18} className="tool-icon" />, label: 'Text' },
+  ];
+
   const actionTools = [
     { name: 'undo', icon: <Undo size={18} />, label: 'Undo', action: onUndo, disabled: !canUndo },
     { name: 'redo', icon: <Redo size={18} />, label: 'Redo', action: onRedo, disabled: !canRedo },
     { name: 'delete', icon: <Trash size={18} />, label: 'Delete', action: onDeleteSelected },
     { name: 'clear', icon: <Trash2 size={18} />, label: 'Clear', action: onClearFrame },
-    { name: 'download', icon: <Download size={18} />, label: 'PNG', action: onDownloadPNG },
   ];
 
-  // Show shape-specific options
+  // Get current shape icon for shapes button
+  const getCurrentShapeIcon = () => {
+    const currentShape = shapeTools.find(shape => shape.name === selectedTool);
+    return currentShape ? currentShape.icon : <Shapes size={18} className="tool-icon" />;
+  };
+
+  // Show tool-specific options
   const showShapeOptions = ['rectangle', 'circle', 'line', 'arrow'].includes(selectedTool);
   const showTextOptions = selectedTool === 'text';
+  const showStickyOptions = selectedTool === 'sticky';
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shapesDropdownRef.current && !shapesDropdownRef.current.contains(event.target)) {
+        setShowShapesDropdown(false);
+      }
+      if (downloadDropdownRef.current && !downloadDropdownRef.current.contains(event.target)) {
+        setShowDownloadDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleShapeSelect = (shapeName) => {
+    setSelectedTool(shapeName);
+    setShowShapesDropdown(false);
+  };
+
+  const handleDownloadSelect = (type, scale = 1) => {
+    if (type === 'png') {
+      onDownloadPNG(scale);
+    } else if (type === 'pdf') {
+      onDownloadPDF();
+    }
+    setShowDownloadDropdown(false);
+  };
 
   return (
     <div className="toolbar-wrapper">
-      {/* Main Tools */}
-      <div className="toolbar-section">
-        <div className="tool-group">
+      {/* Main Tools Bar */}
+      <div className="toolbar-section main-toolbar">
+        <div className="tool-group main-tools">
           {mainTools.map((tool) => (
             <button
               key={tool.name}
@@ -81,32 +135,77 @@ const Toolbar = ({
               onClick={() => setSelectedTool(tool.name)}
               title={tool.label}
             >
-              {tool.icon} {tool.label}
+              {tool.icon} <span className="tool-label">{tool.label}</span>
             </button>
           ))}
+
+          {/* Shapes Dropdown */}
+          <div className="dropdown-container" ref={shapesDropdownRef}>
+            <button
+              className={`tool-button dropdown-trigger ${showShapeOptions ? 'active' : ''}`}
+              onClick={() => setShowShapesDropdown(!showShapesDropdown)}
+              title="Shapes"
+            >
+              {getCurrentShapeIcon()} <span className="tool-label">Shapes</span> <ChevronDown size={14} />
+            </button>
+            {showShapesDropdown && (
+              <div className="dropdown-menu shapes-dropdown">
+                {shapeTools.map((tool) => (
+                  <button
+                    key={tool.name}
+                    className={`dropdown-item ${selectedTool === tool.name ? 'active' : ''}`}
+                    onClick={() => handleShapeSelect(tool.name)}
+                  >
+                    {tool.icon} {tool.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="separator"></div>
-
-        {/* Shape Tools */}
-        <div className="tool-group">
-          {shapeTools.map((tool) => (
+        {/* Download Button - Right Aligned */}
+        <div className="tool-group download-group">
+          <div className="dropdown-container" ref={downloadDropdownRef}>
             <button
-              key={tool.name}
-              className={`tool-button ${selectedTool === tool.name ? 'active' : ''}`}
-              onClick={() => setSelectedTool(tool.name)}
-              title={tool.label}
+              className="tool-button download-button"
+              onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+              title="Download"
             >
-              {tool.icon} {tool.label}
+              <Download size={18} /> <span className="tool-label">Download</span> <ChevronDown size={14} />
             </button>
-          ))}
+            {showDownloadDropdown && (
+              <div className="dropdown-menu download-dropdown">
+                <div className="dropdown-section">
+                  <div className="dropdown-section-title">High Quality PNG</div>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 1)}>
+                    <Download size={16} /> PNG - Standard (1x)
+                  </button>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 2)}>
+                    <Download size={16} /> PNG - High Quality (2x)
+                  </button>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 3)}>
+                    <Download size={16} /> PNG - Ultra Quality (3x)
+                  </button>
+                </div>
+                <div className="dropdown-section">
+                  <div className="dropdown-section-title">PDF Document</div>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('pdf')}>
+                    <Download size={16} /> Download as PDF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Tool Options */}
-      <div className="toolbar-section">
+      <div className="toolbar-section options-section">
         <div className="tool-group tool-options-group">
-          <span className="options-label"><Palette size={16} style={{ color: strokeColor }} /> Stroke:</span>
+          <span className="options-label">
+            <Palette size={16} style={{ color: strokeColor }} /> Stroke:
+          </span>
           <div className="color-palette">
             {ACCESSIBLE_COLORS.map((color) => (
               <button
@@ -120,6 +219,27 @@ const Toolbar = ({
             ))}
           </div>
         </div>
+
+        {showStickyOptions && (
+          <>
+            <div className="separator"></div>
+            <div className="tool-group tool-options-group">
+              <span className="options-label">Note Color:</span>
+              <div className="color-palette">
+                {STICKY_NOTE_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`color-button ${stickyNoteColor === color.value ? 'active' : ''}`}
+                    style={{ backgroundColor: color.value }}
+                    onClick={() => setStickyNoteColor(color.value)}
+                    title={color.name}
+                    aria-label={`Select sticky note color ${color.name}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {showShapeOptions && (
           <>
@@ -152,7 +272,7 @@ const Toolbar = ({
         <div className="separator"></div>
 
         <div className="tool-group tool-options-group">
-          <span className="options-label">Line:</span>
+          <span className="options-label">Line Width:</span>
           <div className="line-width-selection">
             {LINE_WIDTHS.map((widthOption) => (
               <button
@@ -161,7 +281,16 @@ const Toolbar = ({
                 onClick={() => setLineWidth(widthOption.value)}
                 title={widthOption.label}
               >
-                <span style={{ display: 'inline-block', width: '20px', height: `${Math.min(widthOption.value, 15)}px`, backgroundColor: strokeColor === '#ffffff' ? '#cccccc' : strokeColor, borderRadius: '2px' }}></span>
+                <span 
+                  className="line-preview"
+                  style={{ 
+                    display: 'inline-block', 
+                    width: '20px', 
+                    height: `${Math.min(widthOption.value, 15)}px`, 
+                    backgroundColor: strokeColor === '#ffffff' ? '#cccccc' : strokeColor, 
+                    borderRadius: '2px' 
+                  }}
+                ></span>
               </button>
             ))}
           </div>
@@ -200,7 +329,7 @@ const Toolbar = ({
                 disabled={tool.disabled}
                 title={tool.label}
             >
-                {tool.icon} {tool.label}
+                {tool.icon} <span className="tool-label">{tool.label}</span>
             </button>
             ))}
         </div>

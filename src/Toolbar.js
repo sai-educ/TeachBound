@@ -61,12 +61,38 @@ const Toolbar = ({
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [tempDisplayMode, setTempDisplayMode] = useState(toolbarDisplayMode);
+  const [dropdownPositions, setDropdownPositions] = useState({});
   
   const shapesDropdownRef = useRef(null);
   const downloadDropdownRef = useRef(null);
   const settingsPanelRef = useRef(null);
+  const shapesButtonRef = useRef(null);
+  const downloadButtonRef = useRef(null);
+  const settingsButtonRef = useRef(null);
 
-  const shapeTools = [
+  // Calculate dropdown position
+  const calculateDropdownPosition = (buttonRef, dropdownWidth = 180) => {
+    if (!buttonRef.current) return {};
+    
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Position above the button by default
+    let top = buttonRect.top - 10; // 10px margin above button
+    let left = buttonRect.left;
+    
+    // Adjust if dropdown would go off screen
+    if (left + dropdownWidth > viewportWidth) {
+      left = viewportWidth - dropdownWidth - 10;
+    }
+    
+    if (top < 10) {
+      top = buttonRect.bottom + 10; // Position below if no room above
+    }
+    
+    return { top, left };
+  };
     { name: 'rectangle', icon: <Square size={14} className="tool-icon" />, label: 'Rectangle' },
     { name: 'circle', icon: <Circle size={14} className="tool-icon" />, label: 'Circle' },
     { name: 'line', icon: <Minus size={14} className="tool-icon" />, label: 'Line' },
@@ -120,6 +146,30 @@ const Toolbar = ({
   const handleShapeSelect = (shapeName) => {
     setSelectedTool(shapeName);
     setShowShapesDropdown(false);
+  };
+
+  const handleShapesDropdownToggle = () => {
+    if (!showShapesDropdown) {
+      const position = calculateDropdownPosition(shapesButtonRef, 140);
+      setDropdownPositions(prev => ({ ...prev, shapes: position }));
+    }
+    setShowShapesDropdown(!showShapesDropdown);
+  };
+
+  const handleDownloadDropdownToggle = () => {
+    if (!showDownloadDropdown) {
+      const position = calculateDropdownPosition(downloadButtonRef, 200);
+      setDropdownPositions(prev => ({ ...prev, download: position }));
+    }
+    setShowDownloadDropdown(!showDownloadDropdown);
+  };
+
+  const handleSettingsPanelToggle = () => {
+    if (!showSettingsPanel) {
+      const position = calculateDropdownPosition(settingsButtonRef, 280);
+      setDropdownPositions(prev => ({ ...prev, settings: position }));
+    }
+    setShowSettingsPanel(!showSettingsPanel);
   };
 
   const handleDownloadSelect = (type, scale = 1) => {
@@ -180,8 +230,9 @@ const Toolbar = ({
           {/* Shapes Dropdown */}
           <div className="dropdown-container" ref={shapesDropdownRef}>
             <button
+              ref={shapesButtonRef}
               className={`tool-button dropdown-trigger ${showShapeOptions ? 'active' : ''} ${toolbarDisplayMode}`}
-              onClick={() => setShowShapesDropdown(!showShapesDropdown)}
+              onClick={handleShapesDropdownToggle}
               title="Shapes"
             >
               {toolbarDisplayMode === 'icons' ? (
@@ -199,7 +250,13 @@ const Toolbar = ({
               )}
             </button>
             {showShapesDropdown && (
-              <div className="dropdown-menu shapes-dropdown">
+              <div 
+                className="dropdown-menu shapes-dropdown" 
+                style={{
+                  top: dropdownPositions.shapes?.top || 0,
+                  left: dropdownPositions.shapes?.left || 0,
+                }}
+              >
                 {shapeTools.map((tool) => (
                   <button
                     key={tool.name}
@@ -283,8 +340,9 @@ const Toolbar = ({
           {/* Download Button */}
           <div className="dropdown-container" ref={downloadDropdownRef}>
             <button
+              ref={downloadButtonRef}
               className={`tool-button download-button ${toolbarDisplayMode}`}
-              onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+              onClick={handleDownloadDropdownToggle}
               title="Download"
             >
               {toolbarDisplayMode === 'icons' ? (
@@ -302,7 +360,13 @@ const Toolbar = ({
               )}
             </button>
             {showDownloadDropdown && (
-              <div className="dropdown-menu download-dropdown">
+              <div 
+                className="dropdown-menu download-dropdown"
+                style={{
+                  top: dropdownPositions.download?.top || 0,
+                  left: dropdownPositions.download?.left || 0,
+                }}
+              >
                 <div className="dropdown-section">
                   <div className="dropdown-section-title">High Quality PNG</div>
                   <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 1)}>
@@ -328,15 +392,22 @@ const Toolbar = ({
           {/* Settings Button */}
           <div className="dropdown-container" ref={settingsPanelRef}>
             <button
+              ref={settingsButtonRef}
               className={`tool-button settings-button ${toolbarDisplayMode}`}
-              onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+              onClick={handleSettingsPanelToggle}
               title="Settings"
             >
               <Settings size={14} />
             </button>
             
             {showSettingsPanel && (
-              <div className="settings-panel">
+              <div 
+                className="settings-panel"
+                style={{
+                  top: dropdownPositions.settings?.top || 0,
+                  left: dropdownPositions.settings?.left || 0,
+                }}
+              >
                 <div className="settings-header">
                   <h3>Toolbar Display Settings</h3>
                 </div>

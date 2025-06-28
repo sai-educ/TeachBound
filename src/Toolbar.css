@@ -10,7 +10,7 @@
   flex-shrink: 0;
   font-family: 'Open Sans', Arial, sans-serif;
   position: relative;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .toolbar-section {
@@ -217,7 +217,7 @@
   flex-shrink: 0;
 }
 
-/* Dropdown Styles - Fixed Positioning */
+/* Dropdown Styles - Fixed High Z-Index */
 .dropdown-container {
   position: relative;
   display: inline-block;
@@ -228,10 +228,10 @@
 }
 
 .dropdown-menu {
-  position: absolute;
-  bottom: 100%; /* Position above the toolbar */
-  left: 0;
-  z-index: 2000; /* Higher z-index */
+  position: fixed; /* Changed from absolute to fixed */
+  bottom: auto;
+  left: auto;
+  z-index: 99999; /* Much higher z-index */
   min-width: 180px;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
@@ -245,13 +245,10 @@
 }
 
 .shapes-dropdown {
-  left: 0;
   min-width: 140px;
 }
 
 .download-dropdown {
-  right: 0;
-  left: auto;
   min-width: 200px;
 }
 
@@ -309,16 +306,13 @@
 
 /* Settings Panel Styles */
 .settings-panel {
-  position: absolute;
-  bottom: 100%;
-  right: 0;
-  z-index: 2000;
+  position: fixed; /* Changed from absolute to fixed */
+  z-index: 99999; /* Much higher z-index */
   width: 280px;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15), 0 6px 12px -2px rgba(0, 0, 0, 0.1);
-  margin-bottom: 4px;
   font-family: 'Open Sans', Arial, sans-serif;
 }
 

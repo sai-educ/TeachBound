@@ -140,7 +140,7 @@ function App() {
           <span className="app-subtitle">{APP_SUBTITLE}</span>
         </div>
         <p className="app-slogan">
-          Digital whiteboard for education and collaboration. 100% free to use with no ads.
+          <a href="https://github.com/sai-educ/TeachBound" target="_blank" rel="noopener noreferrer">Open source</a>, ad-free, and 100% free to use.
         </p>
       </header>
       <div className="main-content-wrapper">

@@ -49,6 +49,22 @@
   font-family: 'Open Sans', Arial, sans-serif;
 }
 
+.app-slogan a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease-in-out, text-decoration 0.2s ease-in-out;
+}
+
+.app-slogan a:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.app-slogan a:active {
+  color: #1d4ed8;
+}
+
 .main-content-wrapper {
   flex-grow: 1;
   display: flex;

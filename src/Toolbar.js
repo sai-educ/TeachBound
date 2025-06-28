@@ -93,6 +93,8 @@ const Toolbar = ({
     
     return { top, left };
   };
+  
+  const shapeTools = [
     { name: 'rectangle', icon: <Square size={14} className="tool-icon" />, label: 'Rectangle' },
     { name: 'circle', icon: <Circle size={14} className="tool-icon" />, label: 'Circle' },
     { name: 'line', icon: <Minus size={14} className="tool-icon" />, label: 'Line' },
@@ -128,13 +130,19 @@ const Toolbar = ({
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (shapesDropdownRef.current && !shapesDropdownRef.current.contains(event.target)) {
+      // Check if click is on the button itself
+      const isShapesButton = shapesButtonRef.current?.contains(event.target);
+      const isDownloadButton = downloadButtonRef.current?.contains(event.target);
+      const isSettingsButton = settingsButtonRef.current?.contains(event.target);
+      
+      // Only close if clicking outside both button and dropdown
+      if (!isShapesButton && shapesDropdownRef.current && !shapesDropdownRef.current.contains(event.target)) {
         setShowShapesDropdown(false);
       }
-      if (downloadDropdownRef.current && !downloadDropdownRef.current.contains(event.target)) {
+      if (!isDownloadButton && downloadDropdownRef.current && !downloadDropdownRef.current.contains(event.target)) {
         setShowDownloadDropdown(false);
       }
-      if (settingsPanelRef.current && !settingsPanelRef.current.contains(event.target)) {
+      if (!isSettingsButton && settingsPanelRef.current && !settingsPanelRef.current.contains(event.target)) {
         setShowSettingsPanel(false);
       }
     };
@@ -148,28 +156,40 @@ const Toolbar = ({
     setShowShapesDropdown(false);
   };
 
-  const handleShapesDropdownToggle = () => {
+  const handleShapesDropdownToggle = (e) => {
+    e.stopPropagation();
     if (!showShapesDropdown) {
       const position = calculateDropdownPosition(shapesButtonRef, 140);
       setDropdownPositions(prev => ({ ...prev, shapes: position }));
     }
     setShowShapesDropdown(!showShapesDropdown);
+    // Close other dropdowns
+    setShowDownloadDropdown(false);
+    setShowSettingsPanel(false);
   };
 
-  const handleDownloadDropdownToggle = () => {
+  const handleDownloadDropdownToggle = (e) => {
+    e.stopPropagation();
     if (!showDownloadDropdown) {
       const position = calculateDropdownPosition(downloadButtonRef, 200);
       setDropdownPositions(prev => ({ ...prev, download: position }));
     }
     setShowDownloadDropdown(!showDownloadDropdown);
+    // Close other dropdowns
+    setShowShapesDropdown(false);
+    setShowSettingsPanel(false);
   };
 
-  const handleSettingsPanelToggle = () => {
+  const handleSettingsPanelToggle = (e) => {
+    e.stopPropagation();
     if (!showSettingsPanel) {
       const position = calculateDropdownPosition(settingsButtonRef, 280);
       setDropdownPositions(prev => ({ ...prev, settings: position }));
     }
     setShowSettingsPanel(!showSettingsPanel);
+    // Close other dropdowns
+    setShowShapesDropdown(false);
+    setShowDownloadDropdown(false);
   };
 
   const handleDownloadSelect = (type, scale = 1) => {
@@ -210,6 +230,12 @@ const Toolbar = ({
     }
   };
 
+  // Create portal for dropdowns
+  const DropdownPortal = ({ children, show }) => {
+    if (!show) return null;
+    return children;
+  };
+
   return (
     <div className="toolbar-wrapper">
       {/* Main Tools Bar */}
@@ -228,7 +254,7 @@ const Toolbar = ({
           ))}
 
           {/* Shapes Dropdown */}
-          <div className="dropdown-container" ref={shapesDropdownRef}>
+          <div className="dropdown-container">
             <button
               ref={shapesButtonRef}
               className={`tool-button dropdown-trigger ${showShapeOptions ? 'active' : ''} ${toolbarDisplayMode}`}
@@ -249,12 +275,13 @@ const Toolbar = ({
                 </>
               )}
             </button>
-            {showShapesDropdown && (
+            <DropdownPortal show={showShapesDropdown}>
               <div 
+                ref={shapesDropdownRef}
                 className="dropdown-menu shapes-dropdown" 
                 style={{
-                  top: dropdownPositions.shapes?.top || 0,
-                  left: dropdownPositions.shapes?.left || 0,
+                  top: `${dropdownPositions.shapes?.top || 0}px`,
+                  left: `${dropdownPositions.shapes?.left || 0}px`,
                 }}
               >
                 {shapeTools.map((tool) => (
@@ -267,7 +294,7 @@ const Toolbar = ({
                   </button>
                 ))}
               </div>
-            )}
+            </DropdownPortal>
           </div>
         </div>
 
@@ -338,7 +365,7 @@ const Toolbar = ({
         {/* Download and Settings - Right Aligned */}
         <div className="tool-group download-settings-group">
           {/* Download Button */}
-          <div className="dropdown-container" ref={downloadDropdownRef}>
+          <div className="dropdown-container">
             <button
               ref={downloadButtonRef}
               className={`tool-button download-button ${toolbarDisplayMode}`}
@@ -359,12 +386,13 @@ const Toolbar = ({
                 </>
               )}
             </button>
-            {showDownloadDropdown && (
+            <DropdownPortal show={showDownloadDropdown}>
               <div 
+                ref={downloadDropdownRef}
                 className="dropdown-menu download-dropdown"
                 style={{
-                  top: dropdownPositions.download?.top || 0,
-                  left: dropdownPositions.download?.left || 0,
+                  top: `${dropdownPositions.download?.top || 0}px`,
+                  left: `${dropdownPositions.download?.left || 0}px`,
                 }}
               >
                 <div className="dropdown-section">
@@ -386,11 +414,11 @@ const Toolbar = ({
                   </button>
                 </div>
               </div>
-            )}
+            </DropdownPortal>
           </div>
 
           {/* Settings Button */}
-          <div className="dropdown-container" ref={settingsPanelRef}>
+          <div className="dropdown-container">
             <button
               ref={settingsButtonRef}
               className={`tool-button settings-button ${toolbarDisplayMode}`}
@@ -400,12 +428,13 @@ const Toolbar = ({
               <Settings size={14} />
             </button>
             
-            {showSettingsPanel && (
+            <DropdownPortal show={showSettingsPanel}>
               <div 
+                ref={settingsPanelRef}
                 className="settings-panel"
                 style={{
-                  top: dropdownPositions.settings?.top || 0,
-                  left: dropdownPositions.settings?.left || 0,
+                  top: `${dropdownPositions.settings?.top || 0}px`,
+                  left: `${dropdownPositions.settings?.left || 0}px`,
                 }}
               >
                 <div className="settings-header">
@@ -457,7 +486,7 @@ const Toolbar = ({
                   </button>
                 </div>
               </div>
-            )}
+            </DropdownPortal>
           </div>
         </div>
       </div>

@@ -139,15 +139,7 @@ function App() {
           <span className="app-subtitle">{APP_SUBTITLE}</span>
         </div>
         <p className="app-slogan">
-          Professional digital whiteboard for education and collaboration.{" "}
-          <a 
-            href="https://teachbound.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="slogan-link"
-          >
-            Visit teachbound.com
-          </a>
+          Digital whiteboard for education and collaboration. 100% free to use with no ads.
         </p>
       </header>
       <div className="main-content-wrapper">

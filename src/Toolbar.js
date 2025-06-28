@@ -62,31 +62,31 @@ const Toolbar = ({
   const downloadDropdownRef = useRef(null);
 
   const shapeTools = [
-    { name: 'rectangle', icon: <Square size={18} className="tool-icon" />, label: 'Rectangle' },
-    { name: 'circle', icon: <Circle size={18} className="tool-icon" />, label: 'Circle' },
-    { name: 'line', icon: <Minus size={18} className="tool-icon" />, label: 'Line' },
-    { name: 'arrow', icon: <ArrowRight size={18} className="tool-icon" />, label: 'Arrow' },
+    { name: 'rectangle', icon: <Square size={14} className="tool-icon" />, label: 'Rectangle' },
+    { name: 'circle', icon: <Circle size={14} className="tool-icon" />, label: 'Circle' },
+    { name: 'line', icon: <Minus size={14} className="tool-icon" />, label: 'Line' },
+    { name: 'arrow', icon: <ArrowRight size={14} className="tool-icon" />, label: 'Arrow' },
   ];
 
   const mainTools = [
-    { name: 'select', icon: <MousePointer size={18} className="tool-icon" />, label: 'Select' },
-    { name: 'pen', icon: <PenTool size={18} className="tool-icon" />, label: 'Pen' },
-    { name: 'eraser', icon: <Eraser size={18} className="tool-icon" />, label: 'Eraser' },
-    { name: 'sticky', icon: <StickyNoteIcon size={18} className="tool-icon" />, label: 'Sticky Note' },
-    { name: 'text', icon: <Type size={18} className="tool-icon" />, label: 'Text' },
+    { name: 'select', icon: <MousePointer size={14} className="tool-icon" />, label: 'Select' },
+    { name: 'pen', icon: <PenTool size={14} className="tool-icon" />, label: 'Pen' },
+    { name: 'eraser', icon: <Eraser size={14} className="tool-icon" />, label: 'Eraser' },
+    { name: 'sticky', icon: <StickyNoteIcon size={14} className="tool-icon" />, label: 'Sticky Note' },
+    { name: 'text', icon: <Type size={14} className="tool-icon" />, label: 'Text' },
   ];
 
   const actionTools = [
-    { name: 'undo', icon: <Undo size={18} />, label: 'Undo', action: onUndo, disabled: !canUndo },
-    { name: 'redo', icon: <Redo size={18} />, label: 'Redo', action: onRedo, disabled: !canRedo },
-    { name: 'delete', icon: <Trash size={18} />, label: 'Delete', action: onDeleteSelected },
-    { name: 'clear', icon: <Trash2 size={18} />, label: 'Clear', action: onClearFrame },
+    { name: 'undo', icon: <Undo size={14} />, label: 'Undo', action: onUndo, disabled: !canUndo },
+    { name: 'redo', icon: <Redo size={14} />, label: 'Redo', action: onRedo, disabled: !canRedo },
+    { name: 'delete', icon: <Trash size={14} />, label: 'Delete', action: onDeleteSelected },
+    { name: 'clear', icon: <Trash2 size={14} />, label: 'Clear', action: onClearFrame },
   ];
 
   // Get current shape icon for shapes button
   const getCurrentShapeIcon = () => {
     const currentShape = shapeTools.find(shape => shape.name === selectedTool);
-    return currentShape ? currentShape.icon : <Shapes size={18} className="tool-icon" />;
+    return currentShape ? currentShape.icon : <Shapes size={14} className="tool-icon" />;
   };
 
   // Show tool-specific options
@@ -127,6 +127,7 @@ const Toolbar = ({
     <div className="toolbar-wrapper">
       {/* Main Tools Bar */}
       <div className="toolbar-section main-toolbar">
+        {/* Main Tools Group */}
         <div className="tool-group main-tools">
           {mainTools.map((tool) => (
             <button
@@ -135,7 +136,7 @@ const Toolbar = ({
               onClick={() => setSelectedTool(tool.name)}
               title={tool.label}
             >
-              {tool.icon} <span className="tool-label">{tool.label}</span>
+              {tool.icon}
             </button>
           ))}
 
@@ -146,7 +147,7 @@ const Toolbar = ({
               onClick={() => setShowShapesDropdown(!showShapesDropdown)}
               title="Shapes"
             >
-              {getCurrentShapeIcon()} <span className="tool-label">Shapes</span> <ChevronDown size={14} />
+              {getCurrentShapeIcon()} <ChevronDown size={12} />
             </button>
             {showShapesDropdown && (
               <div className="dropdown-menu shapes-dropdown">
@@ -164,48 +165,11 @@ const Toolbar = ({
           </div>
         </div>
 
-        {/* Download Button - Right Aligned */}
-        <div className="tool-group download-group">
-          <div className="dropdown-container" ref={downloadDropdownRef}>
-            <button
-              className="tool-button download-button"
-              onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-              title="Download"
-            >
-              <Download size={18} /> <span className="tool-label">Download</span> <ChevronDown size={14} />
-            </button>
-            {showDownloadDropdown && (
-              <div className="dropdown-menu download-dropdown">
-                <div className="dropdown-section">
-                  <div className="dropdown-section-title">High Quality PNG</div>
-                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 1)}>
-                    <Download size={16} /> PNG - Standard (1x)
-                  </button>
-                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 2)}>
-                    <Download size={16} /> PNG - High Quality (2x)
-                  </button>
-                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 3)}>
-                    <Download size={16} /> PNG - Ultra Quality (3x)
-                  </button>
-                </div>
-                <div className="dropdown-section">
-                  <div className="dropdown-section-title">PDF Document</div>
-                  <button className="dropdown-item" onClick={() => handleDownloadSelect('pdf')}>
-                    <Download size={16} /> Download as PDF
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        <div className="separator"></div>
 
-      {/* Tool Options */}
-      <div className="toolbar-section options-section">
-        <div className="tool-group tool-options-group">
-          <span className="options-label">
-            <Palette size={16} style={{ color: strokeColor }} /> Stroke:
-          </span>
+        {/* Stroke Colors */}
+        <div className="tool-group stroke-group">
+          <span className="options-label">Stroke:</span>
           <div className="color-palette">
             {ACCESSIBLE_COLORS.map((color) => (
               <button
@@ -220,9 +184,91 @@ const Toolbar = ({
           </div>
         </div>
 
-        {showStickyOptions && (
-          <>
-            <div className="separator"></div>
+        <div className="separator"></div>
+
+        {/* Line Width */}
+        <div className="tool-group line-width-group">
+          <span className="options-label">Line Width:</span>
+          <div className="line-width-selection">
+            {LINE_WIDTHS.map((widthOption) => (
+              <button
+                key={widthOption.value}
+                className={`tool-button line-width-button ${lineWidth === widthOption.value ? 'active' : ''}`}
+                onClick={() => setLineWidth(widthOption.value)}
+                title={widthOption.label}
+              >
+                <span 
+                  className="line-preview"
+                  style={{ 
+                    display: 'inline-block', 
+                    width: '16px', 
+                    height: `${Math.min(widthOption.value, 12)}px`, 
+                    backgroundColor: strokeColor === '#ffffff' ? '#cccccc' : strokeColor, 
+                    borderRadius: '2px' 
+                  }}
+                ></span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="separator"></div>
+
+        {/* Action Tools */}
+        <div className="tool-group action-tools">
+          {actionTools.map((tool) => (
+            <button
+              key={tool.name}
+              className="tool-button action-button"
+              onClick={tool.action}
+              disabled={tool.disabled}
+              title={tool.label}
+            >
+              {tool.icon}
+            </button>
+          ))}
+        </div>
+
+        {/* Download Button - Right Aligned */}
+        <div className="tool-group download-group">
+          <div className="dropdown-container" ref={downloadDropdownRef}>
+            <button
+              className="tool-button download-button"
+              onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+              title="Download"
+            >
+              <Download size={14} /> <ChevronDown size={12} />
+            </button>
+            {showDownloadDropdown && (
+              <div className="dropdown-menu download-dropdown">
+                <div className="dropdown-section">
+                  <div className="dropdown-section-title">High Quality PNG</div>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 1)}>
+                    <Download size={14} /> PNG - Standard (1x)
+                  </button>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 2)}>
+                    <Download size={14} /> PNG - High Quality (2x)
+                  </button>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('png', 3)}>
+                    <Download size={14} /> PNG - Ultra Quality (3x)
+                  </button>
+                </div>
+                <div className="dropdown-section">
+                  <div className="dropdown-section-title">PDF Document</div>
+                  <button className="dropdown-item" onClick={() => handleDownloadSelect('pdf')}>
+                    <Download size={14} /> Download as PDF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tool-Specific Options Row */}
+      {(showStickyOptions || showShapeOptions || showTextOptions) && (
+        <div className="toolbar-section options-section">
+          {showStickyOptions && (
             <div className="tool-group tool-options-group">
               <span className="options-label">Note Color:</span>
               <div className="color-palette">
@@ -238,12 +284,9 @@ const Toolbar = ({
                 ))}
               </div>
             </div>
-          </>
-        )}
+          )}
 
-        {showShapeOptions && (
-          <>
-            <div className="separator"></div>
+          {showShapeOptions && (
             <div className="tool-group tool-options-group">
               <span className="options-label">Fill:</span>
               <div className="color-palette">
@@ -256,8 +299,8 @@ const Toolbar = ({
                       backgroundImage: color.value === 'transparent' 
                         ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)'
                         : 'none',
-                      backgroundSize: '8px 8px',
-                      backgroundPosition: '0 0, 4px 4px'
+                      backgroundSize: '6px 6px',
+                      backgroundPosition: '0 0, 3px 3px'
                     }}
                     onClick={() => setFillColor(color.value)}
                     title={color.name}
@@ -266,39 +309,9 @@ const Toolbar = ({
                 ))}
               </div>
             </div>
-          </>
-        )}
+          )}
 
-        <div className="separator"></div>
-
-        <div className="tool-group tool-options-group">
-          <span className="options-label">Line Width:</span>
-          <div className="line-width-selection">
-            {LINE_WIDTHS.map((widthOption) => (
-              <button
-                key={widthOption.value}
-                className={`tool-button line-width-button ${lineWidth === widthOption.value ? 'active' : ''}`}
-                onClick={() => setLineWidth(widthOption.value)}
-                title={widthOption.label}
-              >
-                <span 
-                  className="line-preview"
-                  style={{ 
-                    display: 'inline-block', 
-                    width: '20px', 
-                    height: `${Math.min(widthOption.value, 15)}px`, 
-                    backgroundColor: strokeColor === '#ffffff' ? '#cccccc' : strokeColor, 
-                    borderRadius: '2px' 
-                  }}
-                ></span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {showTextOptions && (
-          <>
-            <div className="separator"></div>
+          {showTextOptions && (
             <div className="tool-group tool-options-group">
               <span className="options-label">Font Size:</span>
               <div className="font-size-selection">
@@ -314,26 +327,9 @@ const Toolbar = ({
                 ))}
               </div>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Action Tools */}
-      <div className="toolbar-section action-tools-section">
-         <div className="tool-group">
-            {actionTools.map((tool) => (
-            <button
-                key={tool.name}
-                className="tool-button action-button"
-                onClick={tool.action}
-                disabled={tool.disabled}
-                title={tool.label}
-            >
-                {tool.icon} <span className="tool-label">{tool.label}</span>
-            </button>
-            ))}
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -108,11 +108,13 @@ const Canvas = forwardRef(({
       const canvas = canvasRef.current;
       if (!canvas) return;
       
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
       const rect = canvas.getBoundingClientRect();
-      const pdfScale = 2; // High resolution for PDF
       
-      // Create high-resolution canvas for PDF export
+      // Create high-resolution canvas for PDF
       const pdfCanvas = document.createElement('canvas');
+      const pdfScale = 2; // High resolution for PDF
       pdfCanvas.width = rect.width * pdfScale;
       pdfCanvas.height = rect.height * pdfScale;
       
@@ -134,18 +136,65 @@ const Canvas = forwardRef(({
       // Redraw all elements
       redrawAllElements(pdfCtx, rect.width, rect.height, true);
       
-      // Convert to blob and download
-      // Note: For true PDF, you would integrate jsPDF library here
-      pdfCanvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'teachbound-whiteboard.png'; // Would be .pdf with jsPDF
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 'image/png', 1.0);
+      // Get the image data
+      const imageDataUrl = pdfCanvas.toDataURL('image/png', 1.0);
+      
+      // Create HTML content for PDF printing
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Teach Bound Whiteboard</title>
+          <style>
+            @page {
+              margin: 0;
+              size: A4 landscape;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              background: white;
+            }
+            img {
+              max-width: 100%;
+              max-height: 100vh;
+              object-fit: contain;
+            }
+            @media print {
+              body {
+                background: white;
+              }
+              img {
+                max-width: 100%;
+                max-height: 100vh;
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${imageDataUrl}" alt="Teach Bound Whiteboard" />
+          <script>
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                setTimeout(() => {
+                  window.close();
+                }, 1000);
+              }, 500);
+            };
+          </script>
+        </body>
+        </html>
+      `;
+      
+      // Write content to new window and trigger print
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
     },
     
     getCanvasGlobalRect: () => canvasRef.current?.getBoundingClientRect(),
@@ -247,7 +296,7 @@ const Canvas = forwardRef(({
     if (!text || (editingElementId && !isExport)) return;
     
     context.fillStyle = color || '#000000';
-    context.font = font || `${fontSize}px Arial`;
+    context.font = font || `${fontSize}px "Open Sans", Arial, sans-serif`;
     
     // Handle multi-line text
     const lines = text.split('\n');
@@ -275,7 +324,7 @@ const Canvas = forwardRef(({
     // Draw text if not currently editing or if exporting
     if ((editingElementId !== id || isExport) && text) {
       context.fillStyle = '#000000';
-      context.font = '14px Arial';
+      context.font = '14px "Open Sans", Arial, sans-serif';
       
       const textPadding = 10;
       const maxWidth = STICKY_NOTE_WIDTH - 2 * textPadding;
@@ -349,7 +398,7 @@ const Canvas = forwardRef(({
         context.globalCompositeOperation = 'source-over';
         if ((editingElementId !== element.id || isExport) && element.text) {
           drawText(context, element.text, element.x, element.y, 
-                  `${element.fontSize}px Arial`, element.color, isExport);
+                  `${element.fontSize}px "Open Sans", Arial, sans-serif`, element.color, isExport);
         }
       }
       
@@ -368,7 +417,7 @@ const Canvas = forwardRef(({
                            STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
         } else if (element.type === 'text') {
           const tempFont = context.font;
-          context.font = `${element.fontSize}px Arial`;
+          context.font = `${element.fontSize}px "Open Sans", Arial, sans-serif`;
           const textWidth = context.measureText(element.text || '').width;
           context.font = tempFont;
           context.strokeRect(element.x - 2, element.y - element.fontSize - 2, 
@@ -456,7 +505,7 @@ const Canvas = forwardRef(({
     // Draw canvas info
     context.save();
     context.fillStyle = '#888888';
-    context.font = '10px Arial';
+    context.font = '10px "Open Sans", Arial, sans-serif';
     context.setLineDash([]);
     
     const dimText = `${Math.round(canvasWidth)}x${Math.round(canvasHeight)}`;
@@ -528,7 +577,7 @@ const Canvas = forwardRef(({
         }
       } else if (el.type === 'text' && ctx) {
         const originalFont = ctx.font;
-        ctx.font = `${el.fontSize}px Arial`;
+        ctx.font = `${el.fontSize}px "Open Sans", Arial, sans-serif`;
         const textWidth = ctx.measureText(el.text || '').width;
         ctx.font = originalFont;
         
@@ -598,7 +647,7 @@ const Canvas = forwardRef(({
         elBottom = el.y + el.radius;
       } else if (el.type === 'text' && ctx) {
         const originalFont = ctx.font;
-        ctx.font = `${el.fontSize}px Arial`;
+        ctx.font = `${el.fontSize}px "Open Sans", Arial, sans-serif`;
         const textWidth = ctx.measureText(el.text || '').width;
         ctx.font = originalFont;
         elLeft = el.x;

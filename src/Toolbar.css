@@ -3,40 +3,51 @@
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
-  padding: 12px;
-  margin: 10px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  margin: 5px;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .toolbar-section {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
+  gap: 6px;
+  padding: 4px 0;
 }
 
 .toolbar-section:not(:last-child) {
   border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 8px;
-  padding-bottom: 12px;
+  margin-bottom: 4px;
+  padding-bottom: 6px;
 }
 
-/* Main Toolbar - Tools and Download */
+/* Main Toolbar - Single Row Layout */
 .main-toolbar {
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 8px;
 }
 
 .main-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 1;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.stroke-group,
+.line-width-group,
+.action-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .download-group {
@@ -47,52 +58,54 @@
 /* Options Section */
 .options-section {
   justify-content: flex-start;
-}
-
-/* Action Tools Section */
-.action-tools-section {
-  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .tool-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .options-label {
-  font-size: 13px;
+  font-size: 11px;
   color: #555;
-  margin-right: 8px;
+  margin-right: 4px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   white-space: nowrap;
+  font-family: 'Open Sans', Arial, sans-serif;
+  font-weight: 500;
 }
 
 .separator {
   width: 1px;
-  height: 32px;
+  height: 20px;
   background-color: #dee2e6;
-  margin: 0 8px;
+  margin: 0 4px;
   flex-shrink: 0;
 }
 
-/* Tool Buttons */
+/* Tool Buttons - 50% Smaller */
 .tool-button {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border-radius: 4px;
   background-color: #f9fafb;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 11px;
   color: #374151;
   transition: all 0.15s ease-in-out;
   white-space: nowrap;
   font-weight: 500;
+  font-family: 'Open Sans', Arial, sans-serif;
+  min-height: 24px;
+  min-width: 24px;
 }
 
 .tool-button:not(:disabled):not(.active):hover {
@@ -105,7 +118,7 @@
   background-color: #3b82f6;
   color: white;
   border-color: #2563eb;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3);
 }
 
 .tool-button.active:hover {
@@ -139,6 +152,7 @@
   color: white;
   border-color: #059669;
   font-weight: 600;
+  padding: 4px 8px;
 }
 
 .download-button:hover {
@@ -150,10 +164,6 @@
 .tool-icon {
   stroke-width: 2;
   flex-shrink: 0;
-}
-
-.tool-label {
-  font-size: 14px;
 }
 
 /* Dropdown Styles */
@@ -171,42 +181,44 @@
   top: 100%;
   left: 0;
   z-index: 1000;
-  min-width: 220px;
+  min-width: 180px;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  margin-top: 4px;
-  padding: 8px 0;
-  max-height: 400px;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin-top: 2px;
+  padding: 4px 0;
+  max-height: 300px;
   overflow-y: auto;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .shapes-dropdown {
   left: 0;
-  min-width: 180px;
+  min-width: 140px;
 }
 
 .download-dropdown {
   right: 0;
   left: auto;
-  min-width: 240px;
+  min-width: 200px;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 10px 16px;
+  padding: 6px 12px;
   border: none;
   background: none;
   text-align: left;
-  font-size: 14px;
+  font-size: 11px;
   color: #374151;
   cursor: pointer;
   transition: background-color 0.15s ease-in-out;
   font-weight: 500;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .dropdown-item:hover {
@@ -223,96 +235,98 @@
 }
 
 .dropdown-section {
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .dropdown-section:not(:last-child) {
   border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
 }
 
 .dropdown-section-title {
-  padding: 6px 16px;
-  font-size: 12px;
+  padding: 3px 12px;
+  font-size: 10px;
   font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background-color: #f9fafb;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
-/* Color Palette */
+/* Color Palette - 50% Smaller */
 .color-palette {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   flex-wrap: wrap;
 }
 
 .color-button {
-  width: 28px;
-  height: 28px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 2px solid #e5e7eb;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
   position: relative;
 }
 
 .color-button:hover {
   transform: scale(1.1);
   border-color: #9ca3af;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 .color-button.active {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
+  box-shadow: 0 0 0 1px white, 0 0 0 3px #3b82f6;
   transform: scale(1.05);
 }
 
 .fill-button {
-  border-radius: 6px !important;
-}
-
-/* Line Width Selection */
-.line-width-selection {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.line-width-button {
-  min-width: 44px;
-  justify-content: center;
-  padding: 8px 10px;
-}
-
-.line-preview {
   border-radius: 3px !important;
 }
 
-/* Font Size Selection */
+/* Line Width Selection - 50% Smaller */
+.line-width-selection {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.line-width-button {
+  min-width: 22px;
+  justify-content: center;
+  padding: 4px 5px;
+}
+
+.line-preview {
+  border-radius: 2px !important;
+}
+
+/* Font Size Selection - 50% Smaller */
 .font-size-selection {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
 }
 
 .font-size-button {
-  min-width: 60px;
+  min-width: 30px;
   justify-content: center;
-  padding: 8px 12px;
+  padding: 4px 6px;
+  font-size: 10px;
 }
 
 /* Responsive Design */
 @media (max-width: 1024px) {
   .main-toolbar {
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 4px;
   }
   
   .download-group {
@@ -330,14 +344,14 @@
 
 @media (max-width: 768px) {
   .toolbar-wrapper {
-    margin: 5px;
-    padding: 8px;
+    margin: 3px;
+    padding: 4px;
   }
   
   .main-toolbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 6px;
   }
   
   .main-tools {
@@ -352,16 +366,12 @@
   }
   
   .tool-button {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-  
-  .tool-label {
-    display: none;
+    padding: 6px 8px;
+    font-size: 10px;
   }
   
   .dropdown-menu {
-    min-width: 200px;
+    min-width: 160px;
   }
   
   .download-dropdown {
@@ -371,36 +381,46 @@
   }
   
   .color-button {
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
   }
   
   .separator {
-    height: 24px;
+    height: 16px;
+  }
+  
+  .options-label {
+    font-size: 10px;
   }
 }
 
 @media (max-width: 480px) {
   .main-tools {
-    gap: 4px;
+    gap: 2px;
   }
   
   .tool-button {
-    padding: 8px 10px;
-    font-size: 12px;
-    gap: 4px;
+    padding: 4px 6px;
+    font-size: 10px;
+    gap: 2px;
+    min-width: 20px;
+    min-height: 20px;
   }
   
   .options-label {
-    font-size: 12px;
+    font-size: 9px;
   }
   
   .color-button {
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
   }
   
   .tool-group {
-    gap: 6px;
+    gap: 2px;
+  }
+  
+  .separator {
+    margin: 0 2px;
   }
 }

@@ -6,6 +6,7 @@
   width: 100vw;
   overflow: hidden;
   background-color: #f0f2f5;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .app-header {
@@ -30,13 +31,14 @@
   color: #1f2937;
   font-weight: 700;
   letter-spacing: -0.025em;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .app-subtitle {
   font-size: 1em;
   color: #6b7280;
   font-weight: 400;
-  font-style: italic;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .app-slogan {
@@ -44,18 +46,7 @@
   font-size: 0.85em;
   color: #6b7280;
   line-height: 1.4;
-}
-
-.slogan-link {
-  color: #3b82f6;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s ease-in-out;
-}
-
-.slogan-link:hover {
-  color: #2563eb;
-  text-decoration: underline;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .main-content-wrapper {
@@ -70,7 +61,7 @@
   border: 2px dashed #3b82f6;
   background-color: rgba(255, 250, 205, 0.95);
   padding: 10px;
-  font-family: 'Arial', sans-serif;
+  font-family: 'Open Sans', Arial, sans-serif;
   font-size: 14px;
   box-sizing: border-box;
   outline: none;

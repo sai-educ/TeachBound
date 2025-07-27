@@ -21,6 +21,7 @@ const Canvas = forwardRef(({
   const [currentPath, setCurrentPath] = useState([]);
 
   const [draggingElement, setDraggingElement] = useState(null);
+  const [draggedElementsPositions, setDraggedElementsPositions] = useState({}); // New state for real-time positions
   const [isResizingCanvas, setIsResizingCanvas] = useState(false);
 
   const [shapeStartPoint, setShapeStartPoint] = useState(null);
@@ -224,6 +225,14 @@ const Canvas = forwardRef(({
     return newMousePos;
   };
 
+  // Get element position (either current or dragged position)
+  const getElementDisplayPosition = (element) => {
+    if (draggedElementsPositions[element.id]) {
+      return draggedElementsPositions[element.id];
+    }
+    return element;
+  };
+
   const drawShape = (context, type, startX, startY, endX, endY, options = {}) => {
     context.strokeStyle = options.strokeColor || strokeColor;
     context.fillStyle = options.fillColor || fillColor;
@@ -333,7 +342,9 @@ const Canvas = forwardRef(({
   };
 
   const drawStickyNote = (context, element, isExport = false) => {
-    const { x, y, text, backgroundColor, id } = element;
+    const displayElement = getElementDisplayPosition(element);
+    const { x, y } = displayElement;
+    const { text, backgroundColor, id } = element;
     const noteColor = backgroundColor || stickyNoteColor;
     
     // Draw sticky note background
@@ -385,6 +396,7 @@ const Canvas = forwardRef(({
     
     elements.forEach(element => {
       const originalGCO = context.globalCompositeOperation;
+      const displayElement = getElementDisplayPosition(element);
       
       if (element.type === 'stroke') {
         context.globalCompositeOperation = element.isEraser ? 'destination-out' : 'source-over';
@@ -392,12 +404,18 @@ const Canvas = forwardRef(({
         context.lineWidth = element.lineWidth;
         
         if (element.path && element.path.length > 0) {
+          // For strokes, we need to apply offset to the entire path if being dragged
+          const offsetX = displayElement.x !== undefined ? displayElement.x - element.x : 0;
+          const offsetY = displayElement.y !== undefined ? displayElement.y - element.y : 0;
+          
           context.beginPath();
           element.path.forEach((point, index) => {
+            const adjustedX = point.x + offsetX;
+            const adjustedY = point.y + offsetY;
             if (index === 0) {
-              context.moveTo(point.x, point.y);
+              context.moveTo(adjustedX, adjustedY);
             } else {
-              context.lineTo(point.x, point.y);
+              context.lineTo(adjustedX, adjustedY);
             }
           });
           context.stroke();
@@ -412,31 +430,35 @@ const Canvas = forwardRef(({
         
         // Handle different shape types properly
         if (element.type === 'rectangle') {
-          const endX = element.x + element.width;
-          const endY = element.y + element.height;
-          drawShape(context, element.type, element.x, element.y, endX, endY, {
+          const endX = displayElement.x + element.width;
+          const endY = displayElement.y + element.height;
+          drawShape(context, element.type, displayElement.x, displayElement.y, endX, endY, {
             strokeColor: element.strokeColor,
             fillColor: element.fillColor,
             lineWidth: element.lineWidth
           });
         } else if (element.type === 'circle') {
           // For circles, use the stored radius and center point
-          drawShape(context, element.type, element.x, element.y, 0, 0, {
+          drawShape(context, element.type, displayElement.x, displayElement.y, 0, 0, {
             strokeColor: element.strokeColor,
             fillColor: element.fillColor,
             lineWidth: element.lineWidth,
             radius: element.radius
           });
         } else if (element.type === 'triangle') {
-          // For triangles, use stored endX and endY
-          drawShape(context, element.type, element.x, element.y, element.endX, element.endY, {
+          // For triangles, use stored endX and endY with offset
+          const endX = displayElement.endX !== undefined ? displayElement.endX : element.endX;
+          const endY = displayElement.endY !== undefined ? displayElement.endY : element.endY;
+          drawShape(context, element.type, displayElement.x, displayElement.y, endX, endY, {
             strokeColor: element.strokeColor,
             fillColor: element.fillColor,
             lineWidth: element.lineWidth
           });
         } else if (element.type === 'line' || element.type === 'arrow') {
-          // For lines and arrows, use stored endX and endY
-          drawShape(context, element.type, element.x, element.y, element.endX, element.endY, {
+          // For lines and arrows, use stored endX and endY with offset
+          const endX = displayElement.endX !== undefined ? displayElement.endX : element.endX;
+          const endY = displayElement.endY !== undefined ? displayElement.endY : element.endY;
+          drawShape(context, element.type, displayElement.x, displayElement.y, endX, endY, {
             strokeColor: element.strokeColor,
             fillColor: element.fillColor,
             lineWidth: element.lineWidth
@@ -446,7 +468,7 @@ const Canvas = forwardRef(({
       } else if (element.type === 'text') {
         context.globalCompositeOperation = 'source-over';
         if ((editingElementId !== element.id || isExport) && element.text) {
-          drawText(context, element.text, element.x, element.y, 
+          drawText(context, element.text, displayElement.x, displayElement.y, 
                   `${element.fontSize}px "Open Sans", Arial, sans-serif`, element.color, isExport);
         }
       }
@@ -462,33 +484,37 @@ const Canvas = forwardRef(({
         context.setLineDash([5, 5]);
         
         if (element.type === 'sticky') {
-          context.strokeRect(element.x - 2, element.y - 2, 
+          context.strokeRect(displayElement.x - 2, displayElement.y - 2, 
                            STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
         } else if (element.type === 'text') {
           const tempFont = context.font;
           context.font = `${element.fontSize}px "Open Sans", Arial, sans-serif`;
           const textWidth = context.measureText(element.text || '').width;
           context.font = tempFont;
-          context.strokeRect(element.x - 2, element.y - element.fontSize - 2, 
+          context.strokeRect(displayElement.x - 2, displayElement.y - element.fontSize - 2, 
                            textWidth + 4, element.fontSize + 8);
         } else if (element.type === 'rectangle') {
-          context.strokeRect(element.x - 2, element.y - 2, 
+          context.strokeRect(displayElement.x - 2, displayElement.y - 2, 
                            element.width + 4, element.height + 4);
         } else if (element.type === 'circle') {
           context.beginPath();
-          context.arc(element.x, element.y, element.radius + 2, 0, 2 * Math.PI);
+          context.arc(displayElement.x, displayElement.y, element.radius + 2, 0, 2 * Math.PI);
           context.stroke();
         } else if (element.type === 'triangle') {
           // Draw selection rectangle around triangle bounds
-          const minX = Math.min(element.x, element.endX);
-          const maxX = Math.max(element.x, element.endX);
-          const minY = Math.min(element.y, element.endY);
-          const maxY = Math.max(element.y, element.endY);
+          const endX = displayElement.endX !== undefined ? displayElement.endX : element.endX;
+          const endY = displayElement.endY !== undefined ? displayElement.endY : element.endY;
+          const minX = Math.min(displayElement.x, endX);
+          const maxX = Math.max(displayElement.x, endX);
+          const minY = Math.min(displayElement.y, endY);
+          const maxY = Math.max(displayElement.y, endY);
           context.strokeRect(minX - 2, minY - 2, maxX - minX + 4, maxY - minY + 4);
         } else if (element.type === 'line' || element.type === 'arrow') {
+          const endX = displayElement.endX !== undefined ? displayElement.endX : element.endX;
+          const endY = displayElement.endY !== undefined ? displayElement.endY : element.endY;
           context.fillStyle = '#007bff';
-          context.fillRect(element.x - 4, element.y - 4, 8, 8);
-          context.fillRect(element.endX - 4, element.endY - 4, 8, 8);
+          context.fillRect(displayElement.x - 4, displayElement.y - 4, 8, 8);
+          context.fillRect(endX - 4, endY - 4, 8, 8);
         }
         
         context.restore();
@@ -618,17 +644,18 @@ const Canvas = forwardRef(({
     elements, isResizingCanvas, editingElementId, selectedElements,
     currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting,
     strokeColor, fillColor, lineWidth, fontSize, stickyNoteColor,
-    currentPath, isDrawing, selectedTool
+    currentPath, isDrawing, selectedTool, draggedElementsPositions
   ]);
 
   const getElementAtPosition = (x, y) => {
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
+      const displayElement = getElementDisplayPosition(el);
       const ctx = contextRef.current;
       
       if (el.type === 'sticky') {
-        if (x >= el.x && x <= el.x + STICKY_NOTE_WIDTH && 
-            y >= el.y && y <= el.y + STICKY_NOTE_HEIGHT) {
+        if (x >= displayElement.x && x <= displayElement.x + STICKY_NOTE_WIDTH && 
+            y >= displayElement.y && y <= displayElement.y + STICKY_NOTE_HEIGHT) {
           return el;
         }
       } else if (el.type === 'text' && ctx) {
@@ -637,32 +664,37 @@ const Canvas = forwardRef(({
         const textWidth = ctx.measureText(el.text || '').width;
         ctx.font = originalFont;
         
-        if (x >= el.x && x <= el.x + textWidth && 
-            y >= el.y - el.fontSize && y <= el.y) {
+        if (x >= displayElement.x && x <= displayElement.x + textWidth && 
+            y >= displayElement.y - el.fontSize && y <= displayElement.y) {
           return el;
         }
       } else if (el.type === 'rectangle') {
-        if (x >= el.x && x <= el.x + el.width && 
-            y >= el.y && y <= el.y + el.height) {
+        if (x >= displayElement.x && x <= displayElement.x + el.width && 
+            y >= displayElement.y && y <= displayElement.y + el.height) {
           return el;
         }
       } else if (el.type === 'circle') {
-        const distance = Math.sqrt(Math.pow(x - el.x, 2) + Math.pow(y - el.y, 2));
+        const distance = Math.sqrt(Math.pow(x - displayElement.x, 2) + Math.pow(y - displayElement.y, 2));
         if (distance <= el.radius) {
           return el;
         }
       } else if (el.type === 'triangle') {
         // Simple bounding box check for triangle
-        const minX = Math.min(el.x, el.endX);
-        const maxX = Math.max(el.x, el.endX);
-        const minY = Math.min(el.y, el.endY);
-        const maxY = Math.max(el.y, el.endY);
+        const endX = displayElement.endX !== undefined ? displayElement.endX : el.endX;
+        const endY = displayElement.endY !== undefined ? displayElement.endY : el.endY;
+        const minX = Math.min(displayElement.x, endX);
+        const maxX = Math.max(displayElement.x, endX);
+        const minY = Math.min(displayElement.y, endY);
+        const maxY = Math.max(displayElement.y, endY);
         if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
           return el;
         }
       } else if (el.type === 'line' || el.type === 'arrow') {
-        const { x: x1, y: y1, endX: x2, endY: y2, lineWidth: lw } = el;
-        const lenSq = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2);
+        const endX = displayElement.endX !== undefined ? displayElement.endX : el.endX;
+        const endY = displayElement.endY !== undefined ? displayElement.endY : el.endY;
+        const { x: x1, y: y1 } = displayElement;
+        const { lineWidth: lw } = el;
+        const lenSq = Math.pow(endX - x1, 2) + Math.pow(endY - y1, 2);
         const effectiveLineWidth = Math.max(lw / 2 + 3, 8);
         
         if (lenSq === 0) {
@@ -670,10 +702,10 @@ const Canvas = forwardRef(({
             return el;
           }
         } else {
-          let t = ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / lenSq;
+          let t = ((x - x1) * (endX - x1) + (y - y1) * (endY - y1)) / lenSq;
           t = Math.max(0, Math.min(1, t));
-          const projX = x1 + t * (x2 - x1);
-          const projY = y1 + t * (y2 - y1);
+          const projX = x1 + t * (endX - x1);
+          const projY = y1 + t * (endY - y1);
           
           if (Math.sqrt(Math.pow(x - projX, 2) + Math.pow(y - projY, 2)) < effectiveLineWidth) {
             return el;
@@ -693,37 +725,40 @@ const Canvas = forwardRef(({
     const ctx = contextRef.current;
     
     return elements.filter(el => {
+      const displayElement = getElementDisplayPosition(el);
       let elLeft, elRight, elTop, elBottom;
       
       if (el.type === 'sticky') {
-        elLeft = el.x;
-        elRight = el.x + STICKY_NOTE_WIDTH;
-        elTop = el.y;
-        elBottom = el.y + STICKY_NOTE_HEIGHT;
+        elLeft = displayElement.x;
+        elRight = displayElement.x + STICKY_NOTE_WIDTH;
+        elTop = displayElement.y;
+        elBottom = displayElement.y + STICKY_NOTE_HEIGHT;
       } else if (el.type === 'rectangle') {
-        elLeft = el.x;
-        elRight = el.x + el.width;
-        elTop = el.y;
-        elBottom = el.y + el.height;
+        elLeft = displayElement.x;
+        elRight = displayElement.x + el.width;
+        elTop = displayElement.y;
+        elBottom = displayElement.y + el.height;
       } else if (el.type === 'circle') {
-        elLeft = el.x - el.radius;
-        elRight = el.x + el.radius;
-        elTop = el.y - el.radius;
-        elBottom = el.y + el.radius;
+        elLeft = displayElement.x - el.radius;
+        elRight = displayElement.x + el.radius;
+        elTop = displayElement.y - el.radius;
+        elBottom = displayElement.y + el.radius;
       } else if (el.type === 'triangle') {
-        elLeft = Math.min(el.x, el.endX);
-        elRight = Math.max(el.x, el.endX);
-        elTop = Math.min(el.y, el.endY);
-        elBottom = Math.max(el.y, el.endY);
+        const endX = displayElement.endX !== undefined ? displayElement.endX : el.endX;
+        const endY = displayElement.endY !== undefined ? displayElement.endY : el.endY;
+        elLeft = Math.min(displayElement.x, endX);
+        elRight = Math.max(displayElement.x, endX);
+        elTop = Math.min(displayElement.y, endY);
+        elBottom = Math.max(displayElement.y, endY);
       } else if (el.type === 'text' && ctx) {
         const originalFont = ctx.font;
         ctx.font = `${el.fontSize}px "Open Sans", Arial, sans-serif`;
         const textWidth = ctx.measureText(el.text || '').width;
         ctx.font = originalFont;
-        elLeft = el.x;
-        elRight = el.x + textWidth;
-        elTop = el.y - el.fontSize;
-        elBottom = el.y;
+        elLeft = displayElement.x;
+        elRight = displayElement.x + textWidth;
+        elTop = displayElement.y - el.fontSize;
+        elBottom = displayElement.y;
       } else if (el.type === 'line' || el.type === 'arrow' || el.type === 'stroke') {
         if (el.path && el.path.length > 0) {
           elLeft = Math.min(...el.path.map(p => p.x));
@@ -731,10 +766,12 @@ const Canvas = forwardRef(({
           elTop = Math.min(...el.path.map(p => p.y));
           elBottom = Math.max(...el.path.map(p => p.y));
         } else if (el.type === 'line' || el.type === 'arrow') {
-          elLeft = Math.min(el.x, el.endX);
-          elRight = Math.max(el.x, el.endX);
-          elTop = Math.min(el.y, el.endY);
-          elBottom = Math.max(el.y, el.endY);
+          const endX = displayElement.endX !== undefined ? displayElement.endX : el.endX;
+          const endY = displayElement.endY !== undefined ? displayElement.endY : el.endY;
+          elLeft = Math.min(displayElement.x, endX);
+          elRight = Math.max(displayElement.x, endX);
+          elTop = Math.min(displayElement.y, endY);
+          elBottom = Math.max(displayElement.y, endY);
         } else {
           return false;
         }
@@ -869,6 +906,32 @@ const Canvas = forwardRef(({
         endX: x,
         endY: y
       });
+    } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
+      // Real-time dragging: Update positions as mouse moves
+      const deltaX = x - draggingElement.initialMouseX;
+      const deltaY = y - draggingElement.initialMouseY;
+      
+      const newDraggedPositions = {};
+      draggingElement.initialPositions.forEach(initialPos => {
+        const element = elements.find(el => el.id === initialPos.id);
+        if (element) {
+          if (element.type === 'line' || element.type === 'arrow' || element.type === 'triangle') {
+            newDraggedPositions[initialPos.id] = {
+              x: initialPos.x + deltaX,
+              y: initialPos.y + deltaY,
+              endX: initialPos.endX + deltaX,
+              endY: initialPos.endY + deltaY
+            };
+          } else {
+            newDraggedPositions[initialPos.id] = {
+              x: initialPos.x + deltaX,
+              y: initialPos.y + deltaY
+            };
+          }
+        }
+      });
+      
+      setDraggedElementsPositions(newDraggedPositions);
     }
   };
 
@@ -891,6 +954,7 @@ const Canvas = forwardRef(({
       setCurrentPath([]);
       
     } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
+      // Commit the dragged positions to the actual elements
       const deltaX = x - draggingElement.initialMouseX;
       const deltaY = y - draggingElement.initialMouseY;
       
@@ -916,7 +980,10 @@ const Canvas = forwardRef(({
           return el;
         })
       );
+      
+      // Clear dragging states
       setDraggingElement(null);
+      setDraggedElementsPositions({});
       
     } else if (currentShape && shapeStartPoint) {
       const distance = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
@@ -979,23 +1046,24 @@ const Canvas = forwardRef(({
     }
   };
 
-  // Cursor styling - Fixed eraser cursor
+  // Cursor styling - Enhanced with dragging states
   let canvasCursor = 'auto';
   if (editingElementId) {
     canvasCursor = 'text';
   } else if (selectedTool === 'pen') {
     canvasCursor = 'crosshair';
   } else if (selectedTool === 'eraser') {
-    // Fixed eraser cursor - always show white circle
     canvasCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='8' fill='white' stroke='black' stroke-width='2'/></svg>") 10 10, auto`;
   } else if (selectedTool === 'sticky') {
     canvasCursor = 'cell';
   } else if (selectedTool === 'select') {
-    canvasCursor = 'default';
+    if (draggingElement) {
+      canvasCursor = 'grabbing';
+    } else {
+      canvasCursor = 'default';
+    }
   } else if (['rectangle', 'circle', 'triangle', 'line', 'arrow', 'text'].includes(selectedTool)) {
     canvasCursor = 'crosshair';
-  } else if (draggingElement) {
-    canvasCursor = 'grabbing';
   }
 
   // Keyboard shortcuts

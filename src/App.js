@@ -117,8 +117,32 @@ function App() {
   const handleUndo = () => historyStep > 0 && setHistoryStep(historyStep - 1);
   const handleRedo = () => historyStep < history.length - 1 && setHistoryStep(historyStep + 1);
   
+  // Enhanced Clear function with sound alert
   const handleClearFrame = () => {
-    const confirmed = window.confirm("Are you sure you want to clear the canvas? This action cannot be undone.");
+    // Play sound alert
+    try {
+      // Create a simple beep sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800; // Frequency in Hz
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+      console.log('Audio not supported or blocked:', error);
+    }
+    
+    // Show confirmation dialog
+    const confirmed = window.confirm("⚠️ CLEAR CANVAS WARNING ⚠️\n\nThis will permanently delete everything on the canvas and cannot be undone.\n\nAre you sure you want to continue?");
     if (confirmed) {
       setHistory([[]]);
       setHistoryStep(0);
@@ -140,7 +164,8 @@ function App() {
           <span className="app-subtitle">{APP_SUBTITLE}</span>
         </div>
         <p className="app-slogan">
-          <a href="https://github.com/sai-educ/TeachBound" target="_blank" rel="noopener noreferrer">Open source</a>, ad-free, and 100% free to use.
+          <a href="https://github.com/sai-educ/TeachBound" target="_blank" rel="noopener noreferrer">Open source</a>, ad-free, and 100% free to use. {' '}
+          <a href="https://forms.gle/WShMfsvVaLc34QeaA" target="_blank" rel="noopener noreferrer">Please provide feedback or suggestions!</a>
         </p>
       </header>
       <div className="main-content-wrapper">

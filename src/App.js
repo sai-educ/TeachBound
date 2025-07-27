@@ -15,7 +15,7 @@ function App() {
   const [lineWidth, setLineWidth] = useState(5);
   const [fontSize, setFontSize] = useState(16);
   const [stickyNoteColor, setStickyNoteColor] = useState('#FFFACD'); // Default yellow
-  const [toolbarDisplayMode, setToolbarDisplayMode] = useState('icons'); // 'icons', 'icons-text', 'text'
+  const [toolbarDisplayMode, setToolbarDisplayMode] = useState('icons-text'); // Changed from 'icons' to 'icons-text'
 
   const [history, setHistory] = useState([[]]); // Array of element arrays
   const [historyStep, setHistoryStep] = useState(0);

@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Toolbar.css';
 import {
   PenTool, Eraser, StickyNote as StickyNoteIcon, Palette,
-  Undo, Redo, Trash2, Download, Square, Circle,
+  Undo, Redo, Trash2, Download, Square, Circle, Triangle,
   Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes, Settings
 } from 'lucide-react';
 
@@ -97,6 +97,7 @@ const Toolbar = ({
   const shapeTools = [
     { name: 'rectangle', icon: <Square size={14} className="tool-icon" />, label: 'Rectangle' },
     { name: 'circle', icon: <Circle size={14} className="tool-icon" />, label: 'Circle' },
+    { name: 'triangle', icon: <Triangle size={14} className="tool-icon" />, label: 'Triangle' },
     { name: 'line', icon: <Minus size={14} className="tool-icon" />, label: 'Line' },
     { name: 'arrow', icon: <ArrowRight size={14} className="tool-icon" />, label: 'Arrow' },
   ];
@@ -123,7 +124,7 @@ const Toolbar = ({
   };
 
   // Show tool-specific options
-  const showShapeOptions = ['rectangle', 'circle', 'line', 'arrow'].includes(selectedTool);
+  const showShapeOptions = ['rectangle', 'circle', 'triangle', 'line', 'arrow'].includes(selectedTool);
   const showTextOptions = selectedTool === 'text';
   const showStickyOptions = selectedTool === 'sticky';
 

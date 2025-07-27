@@ -9,10 +9,8 @@ Teach Bound aims to provide a simple, yet powerful, digital canvas for educators
 ## Try Teach Bound Live!
 
 Experience Teach Bound directly in your browser:
-**[Live Demo: https://teachbound.com](https://teachbound.com)**
-
-<img width="1295" alt="Teach Bound Digital Whiteboard" src="https://github.com/user-attachments/assets/8762ef2a-cddf-4781-ad3c-0091f1ec5776" />
-
+**[https://teachbound.com](https://teachbound.com)**
+![Teach Bound screenshot](https://github.com/user-attachments/assets/ab02e556-158b-42f1-8885-7124cea6dfa6)
 ---
 
 ## Overview

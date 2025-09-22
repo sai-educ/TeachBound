@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import './App.css';
 import Toolbar from './Toolbar';
 import Canvas from './Canvas';
@@ -17,8 +17,30 @@ function App() {
   const [stickyNoteColor, setStickyNoteColor] = useState('#FFFACD'); // Default yellow
   const [toolbarDisplayMode, setToolbarDisplayMode] = useState('icons-text'); // Changed from 'icons' to 'icons-text'
 
-  const [history, setHistory] = useState([[]]); // Array of element arrays
-  const [historyStep, setHistoryStep] = useState(0);
+  // Initialize history from localStorage if available
+  const loadFromLocalStorage = () => {
+    try {
+      const saved = localStorage.getItem('teachbound-canvas-data');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.history && Array.isArray(data.history)) {
+          return {
+            history: data.history,
+            historyStep: data.historyStep || 0
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+    }
+    return { history: [[]], historyStep: 0 };
+  };
+
+  const initialState = loadFromLocalStorage();
+  const [history, setHistory] = useState(initialState.history);
+  const [historyStep, setHistoryStep] = useState(initialState.historyStep);
+  const [lastSaveTime, setLastSaveTime] = useState(Date.now());
+  const [showSaveIndicator, setShowSaveIndicator] = useState(false);
   const elements = history[historyStep] || [];
 
   const canvasRef = useRef(null);
@@ -26,6 +48,9 @@ function App() {
   const [editingElement, setEditingElement] = useState(null);
   const [textAreaPosition, setTextAreaPosition] = useState({ x: 0, y: 0 });
   const textAreaRef = useRef(null);
+  
+  // Clipboard state for copy/paste
+  const [clipboard, setClipboard] = useState([]);
 
   const updateElementsAndHistory = useCallback((newElementsOrUpdater) => {
     setHistory((prevHistory) => {
@@ -156,6 +181,222 @@ function App() {
     canvasRef.current?.deleteSelectedElements();
   }, []);
 
+  // Auto-save to localStorage
+  const saveToLocalStorage = useCallback(() => {
+    try {
+      const dataToSave = {
+        history: history,
+        historyStep: historyStep,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('teachbound-canvas-data', JSON.stringify(dataToSave));
+      setLastSaveTime(Date.now());
+      setShowSaveIndicator(true);
+      setTimeout(() => setShowSaveIndicator(false), 2000);
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+      // If localStorage is full, try to clear old data
+      if (error.name === 'QuotaExceededError') {
+        console.warn('localStorage quota exceeded, clearing old data');
+        localStorage.removeItem('teachbound-canvas-data');
+      }
+    }
+  }, [history, historyStep]);
+
+  // Auto-save effect - saves every 5 seconds if there are changes
+  useEffect(() => {
+    const saveInterval = setInterval(() => {
+      if (Date.now() - lastSaveTime > 5000 && history.length > 0) {
+        saveToLocalStorage();
+      }
+    }, 5000);
+
+    return () => clearInterval(saveInterval);
+  }, [lastSaveTime, history, saveToLocalStorage]);
+
+  // Save immediately when history changes (debounced)
+  useEffect(() => {
+    const saveTimer = setTimeout(() => {
+      if (history.length > 0 && history[0].length > 0) {
+        saveToLocalStorage();
+      }
+    }, 1000);
+
+    return () => clearTimeout(saveTimer);
+  }, [history, historyStep, saveToLocalStorage]);
+
+  // Manual save function
+  const handleManualSave = () => {
+    saveToLocalStorage();
+  };
+
+  // Clear saved data
+  const handleClearSaved = () => {
+    if (window.confirm('This will clear your saved work from browser storage. Are you sure?')) {
+      localStorage.removeItem('teachbound-canvas-data');
+      setShowSaveIndicator(true);
+      setTimeout(() => setShowSaveIndicator(false), 2000);
+    }
+  };
+
+  // Copy selected elements
+  const handleCopy = useCallback(() => {
+    const selectedElements = canvasRef.current?.getSelectedElements();
+    if (selectedElements && selectedElements.length > 0) {
+      setClipboard([...selectedElements]);
+      // Show copy feedback
+      setShowSaveIndicator(true);
+      setTimeout(() => setShowSaveIndicator(false), 1000);
+    }
+  }, []);
+
+  // Paste elements
+  const handlePaste = useCallback(() => {
+    if (clipboard.length > 0) {
+      const offset = 20; // Offset pasted elements
+      const pastedElements = clipboard.map(el => ({
+        ...el,
+        id: Date.now() + Math.random(), // New unique ID
+        x: el.x + offset,
+        y: el.y + offset,
+        // Adjust end coordinates for shapes
+        ...(el.endX !== undefined && { endX: el.endX + offset }),
+        ...(el.endY !== undefined && { endY: el.endY + offset }),
+        // Adjust path for strokes
+        ...(el.path && { 
+          path: el.path.map(point => ({ 
+            x: point.x + offset, 
+            y: point.y + offset 
+          })) 
+        })
+      }));
+      
+      updateElementsAndHistory((prevElements) => [
+        ...prevElements,
+        ...pastedElements
+      ]);
+    }
+  }, [clipboard, updateElementsAndHistory]);
+
+  // Duplicate selected elements
+  const handleDuplicate = useCallback(() => {
+    handleCopy();
+    setTimeout(() => handlePaste(), 100);
+  }, [handleCopy, handlePaste]);
+
+  // Keyboard shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Don't trigger shortcuts when typing in textarea
+      if (event.target.tagName === 'TEXTAREA' || event.target.tagName === 'INPUT') {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+
+      // Tool selection shortcuts
+      if (!cmdOrCtrl && !event.shiftKey && !event.altKey) {
+        switch (event.key.toLowerCase()) {
+          case 'v':
+            setSelectedTool('select');
+            event.preventDefault();
+            break;
+          case 'p':
+            setSelectedTool('pen');
+            event.preventDefault();
+            break;
+          case 'e':
+            setSelectedTool('eraser');
+            event.preventDefault();
+            break;
+          case 'n':
+            setSelectedTool('sticky');
+            event.preventDefault();
+            break;
+          case 't':
+            setSelectedTool('text');
+            event.preventDefault();
+            break;
+          case 'h':
+            setSelectedTool('highlighter');
+            event.preventDefault();
+            break;
+          case 'r':
+            setSelectedTool('rectangle');
+            event.preventDefault();
+            break;
+          case 'c':
+            setSelectedTool('circle');
+            event.preventDefault();
+            break;
+          case 'l':
+            setSelectedTool('line');
+            event.preventDefault();
+            break;
+          case 'a':
+            setSelectedTool('arrow');
+            event.preventDefault();
+            break;
+          case 'escape':
+            // Deselect all
+            canvasRef.current?.clearSelection();
+            event.preventDefault();
+            break;
+          case 'delete':
+          case 'backspace':
+            // Delete selected elements
+            handleDeleteSelected();
+            event.preventDefault();
+            break;
+        }
+      }
+
+      // Cmd/Ctrl shortcuts
+      if (cmdOrCtrl) {
+        switch (event.key.toLowerCase()) {
+          case 'z':
+            if (event.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+            event.preventDefault();
+            break;
+          case 'y':
+            handleRedo();
+            event.preventDefault();
+            break;
+          case 'c':
+            handleCopy();
+            event.preventDefault();
+            break;
+          case 'v':
+            handlePaste();
+            event.preventDefault();
+            break;
+          case 'd':
+            handleDuplicate();
+            event.preventDefault();
+            break;
+          case 's':
+            handleManualSave();
+            event.preventDefault();
+            break;
+          case 'a':
+            // Select all
+            canvasRef.current?.selectAll();
+            event.preventDefault();
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTool, handleUndo, handleRedo, handleCopy, handlePaste, 
+      handleDuplicate, handleDeleteSelected, handleManualSave]);
+
   return (
     <div className="App">
       <header className="app-header">
@@ -192,6 +433,12 @@ function App() {
           onDownloadPNG={handleDownloadPNG}
           onDownloadPDF={handleDownloadPDF}
           onDeleteSelected={handleDeleteSelected}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onDuplicate={handleDuplicate}
+          onSave={handleManualSave}
+          onClearSaved={handleClearSaved}
+          hasClipboard={clipboard.length > 0}
         />
         <Canvas
           ref={canvasRef}
@@ -229,6 +476,13 @@ function App() {
           onBlur={handleTextAreaBlur}
           onKeyDown={handleTextAreaKeyDown}
         />
+      )}
+      
+      {/* Save Indicator */}
+      {showSaveIndicator && (
+        <div className="save-indicator">
+          ✓ Saved
+        </div>
       )}
     </div>
   );

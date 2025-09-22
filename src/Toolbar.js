@@ -4,7 +4,8 @@ import './Toolbar.css';
 import {
   PenTool, Eraser, StickyNote as StickyNoteIcon, Palette,
   Undo, Redo, Trash2, Download, Square, Circle, Triangle,
-  Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes, Settings
+  Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes, Settings,
+  Highlighter, Copy, Clipboard, Save, FolderOpen
 } from 'lucide-react';
 
 const ACCESSIBLE_COLORS = [
@@ -55,7 +56,8 @@ const Toolbar = ({
   fontSize, setFontSize,
   stickyNoteColor, setStickyNoteColor,
   toolbarDisplayMode, setToolbarDisplayMode,
-  onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDownloadPDF, onDeleteSelected
+  onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDownloadPDF, onDeleteSelected,
+  onCopy, onPaste, onDuplicate, onSave, onClearSaved, hasClipboard
 }) => {
   const [showShapesDropdown, setShowShapesDropdown] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -103,18 +105,22 @@ const Toolbar = ({
   ];
 
   const mainTools = [
-    { name: 'select', icon: <MousePointer size={14} className="tool-icon" />, label: 'Select' },
-    { name: 'pen', icon: <PenTool size={14} className="tool-icon" />, label: 'Pen' },
-    { name: 'eraser', icon: <Eraser size={14} className="tool-icon" />, label: 'Eraser' },
-    { name: 'sticky', icon: <StickyNoteIcon size={14} className="tool-icon" />, label: 'Sticky Note' },
-    { name: 'text', icon: <Type size={14} className="tool-icon" />, label: 'Text' },
+    { name: 'select', icon: <MousePointer size={14} className="tool-icon" />, label: 'Select', shortcut: 'V' },
+    { name: 'pen', icon: <PenTool size={14} className="tool-icon" />, label: 'Pen', shortcut: 'P' },
+    { name: 'highlighter', icon: <Highlighter size={14} className="tool-icon" />, label: 'Highlighter', shortcut: 'H' },
+    { name: 'eraser', icon: <Eraser size={14} className="tool-icon" />, label: 'Eraser', shortcut: 'E' },
+    { name: 'sticky', icon: <StickyNoteIcon size={14} className="tool-icon" />, label: 'Sticky Note', shortcut: 'N' },
+    { name: 'text', icon: <Type size={14} className="tool-icon" />, label: 'Text', shortcut: 'T' },
   ];
 
   const actionTools = [
-    { name: 'undo', icon: <Undo size={14} />, label: 'Undo', action: onUndo, disabled: !canUndo },
-    { name: 'redo', icon: <Redo size={14} />, label: 'Redo', action: onRedo, disabled: !canRedo },
-    { name: 'delete', icon: <Trash size={14} />, label: 'Delete', action: onDeleteSelected },
+    { name: 'undo', icon: <Undo size={14} />, label: 'Undo', action: onUndo, disabled: !canUndo, shortcut: '⌘Z' },
+    { name: 'redo', icon: <Redo size={14} />, label: 'Redo', action: onRedo, disabled: !canRedo, shortcut: '⌘⇧Z' },
+    { name: 'copy', icon: <Copy size={14} />, label: 'Copy', action: onCopy, shortcut: '⌘C' },
+    { name: 'paste', icon: <Clipboard size={14} />, label: 'Paste', action: onPaste, disabled: !hasClipboard, shortcut: '⌘V' },
+    { name: 'delete', icon: <Trash size={14} />, label: 'Delete', action: onDeleteSelected, shortcut: 'Del' },
     { name: 'clear', icon: <Trash2 size={14} />, label: 'Clear', action: onClearFrame },
+    { name: 'save', icon: <Save size={14} />, label: 'Save', action: onSave, shortcut: '⌘S' },
   ];
 
   // Get current shape icon for shapes button
@@ -248,7 +254,7 @@ const Toolbar = ({
               key={tool.name}
               className={`tool-button ${selectedTool === tool.name ? 'active' : ''} ${toolbarDisplayMode}`}
               onClick={() => setSelectedTool(tool.name)}
-              title={tool.label}
+              title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
             >
               {renderButtonContent(tool)}
             </button>
@@ -356,7 +362,7 @@ const Toolbar = ({
               className={`tool-button action-button ${toolbarDisplayMode}`}
               onClick={tool.action}
               disabled={tool.disabled}
-              title={tool.label}
+              title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
             >
               {renderButtonContent(tool)}
             </button>

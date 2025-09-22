@@ -62,6 +62,18 @@ const Canvas = forwardRef(({
   };
 
   useImperativeHandle(ref, () => ({
+    getSelectedElements: () => {
+      return elements.filter(el => selectedElements.includes(el.id));
+    },
+    
+    clearSelection: () => {
+      setSelectedElements([]);
+    },
+    
+    selectAll: () => {
+      setSelectedElements(elements.map(el => el.id));
+    },
+    
     downloadAsPNG: (scale = 1) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -399,8 +411,17 @@ const Canvas = forwardRef(({
       const displayElement = getElementDisplayPosition(element);
       
       if (element.type === 'stroke') {
-        context.globalCompositeOperation = element.isEraser ? 'destination-out' : 'source-over';
-        context.strokeStyle = element.isEraser ? 'rgba(0,0,0,1)' : element.color;
+        if (element.isEraser) {
+          context.globalCompositeOperation = 'destination-out';
+          context.strokeStyle = 'rgba(0,0,0,1)';
+        } else if (element.isHighlighter) {
+          context.globalCompositeOperation = 'multiply';
+          context.strokeStyle = element.color;
+          context.globalAlpha = 0.3;
+        } else {
+          context.globalCompositeOperation = 'source-over';
+          context.strokeStyle = element.color;
+        }
         context.lineWidth = element.lineWidth;
         
         if (element.path && element.path.length > 0) {
@@ -419,6 +440,10 @@ const Canvas = forwardRef(({
             }
           });
           context.stroke();
+          
+          if (element.isHighlighter) {
+            context.globalAlpha = 1;
+          }
         }
         
       } else if (element.type === 'sticky') {
@@ -541,12 +566,24 @@ const Canvas = forwardRef(({
     // Draw all elements
     redrawAllElements(context, canvasWidth, canvasHeight, false);
 
-    // Draw current live stroke (pen/eraser)
-    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser') && currentPath.length > 0) {
+    // Draw current live stroke (pen/eraser/highlighter)
+    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter') && currentPath.length > 0) {
       const originalGCO = context.globalCompositeOperation;
-      context.globalCompositeOperation = selectedTool === 'eraser' ? 'destination-out' : 'source-over';
-      context.strokeStyle = selectedTool === 'eraser' ? 'rgba(0,0,0,1)' : strokeColor;
-      context.lineWidth = selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth;
+      
+      if (selectedTool === 'eraser') {
+        context.globalCompositeOperation = 'destination-out';
+        context.strokeStyle = 'rgba(0,0,0,1)';
+        context.lineWidth = lineWidth * 1.5;
+      } else if (selectedTool === 'highlighter') {
+        context.globalCompositeOperation = 'multiply';
+        context.strokeStyle = strokeColor;
+        context.lineWidth = lineWidth * 3;
+        context.globalAlpha = 0.3;
+      } else {
+        context.globalCompositeOperation = 'source-over';
+        context.strokeStyle = strokeColor;
+        context.lineWidth = lineWidth;
+      }
 
       context.beginPath();
       currentPath.forEach((point, index) => {
@@ -557,6 +594,11 @@ const Canvas = forwardRef(({
         }
       });
       context.stroke();
+      
+      if (selectedTool === 'highlighter') {
+        context.globalAlpha = 1;
+      }
+      
       context.globalCompositeOperation = originalGCO;
     }
 
@@ -790,7 +832,7 @@ const Canvas = forwardRef(({
     
     const { x, y } = getMousePosition(event);
 
-    if (selectedTool === 'pen' || selectedTool === 'eraser') {
+    if (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter') {
       setSelectedElements([]);
       setIsDrawing(true);
       setCurrentPath([{ x, y }]);
@@ -897,7 +939,7 @@ const Canvas = forwardRef(({
     const { x, y } = getMousePosition(event);
     if (editingElementId) return;
 
-    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
+    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter')) {
       setCurrentPath(prev => [...prev, { x, y }]);
     } else if (isSelecting && shapeStartPoint) {
       setSelectionRect({
@@ -939,15 +981,16 @@ const Canvas = forwardRef(({
     event.preventDefault();
     const { x, y } = getMousePosition(event);
 
-    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser')) {
+    if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter')) {
       setIsDrawing(false);
       if (currentPath.length > 1) {
         onDrawingOrElementComplete({
           type: 'stroke',
-          color: selectedTool === 'pen' ? strokeColor : 'rgba(0,0,0,0)',
-          lineWidth: selectedTool === 'eraser' ? lineWidth * 1.5 : lineWidth,
+          color: selectedTool === 'highlighter' ? strokeColor : (selectedTool === 'pen' ? strokeColor : 'rgba(0,0,0,0)'),
+          lineWidth: selectedTool === 'eraser' ? lineWidth * 1.5 : (selectedTool === 'highlighter' ? lineWidth * 3 : lineWidth),
           path: currentPath,
           isEraser: selectedTool === 'eraser',
+          isHighlighter: selectedTool === 'highlighter',
           id: Date.now()
         });
       }

@@ -52,6 +52,9 @@ function App() {
   // Clipboard state for copy/paste
   const [clipboard, setClipboard] = useState([]);
 
+  // Image drag state
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+
   const updateElementsAndHistory = useCallback((newElementsOrUpdater) => {
     setHistory((prevHistory) => {
       const currentElementsState = prevHistory[historyStep] || [];
@@ -239,6 +242,120 @@ function App() {
     }
   };
 
+  // Handle image upload - creates image element that fits within canvas
+  const handleImageUpload = useCallback((imageData) => {
+    const img = new window.Image();
+
+    img.onload = () => {
+      // Get canvas dimensions
+      const canvasRect = canvasRef.current?.getCanvasGlobalRect();
+      const maxWidth = (canvasRect?.width || 800) * 0.6; // Max 60% of canvas width
+      const maxHeight = (canvasRect?.height || 600) * 0.6; // Max 60% of canvas height
+
+      // Calculate size to fit within bounds while maintaining aspect ratio
+      let width = img.width || 200;
+      let height = img.height || 200;
+
+      // Handle edge case where dimensions might be 0
+      if (width === 0) width = 200;
+      if (height === 0) height = 200;
+
+      const aspectRatio = width / height;
+
+      if (width > maxWidth) {
+        width = maxWidth;
+        height = width / aspectRatio;
+      }
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height * aspectRatio;
+      }
+
+      // Center the image on canvas
+      const x = ((canvasRect?.width || 800) - width) / 2;
+      const y = ((canvasRect?.height || 600) - height) / 2;
+
+      const newImage = {
+        type: 'image',
+        id: Date.now(),
+        x,
+        y,
+        width,
+        height,
+        rotation: 0,
+        imageData
+      };
+
+      updateElementsAndHistory(prev => [...prev, newImage]);
+      setSelectedTool('select'); // Switch to select tool after adding image
+    };
+
+    img.onerror = () => {
+      console.error('Failed to load image');
+      alert('Could not load this image format. Please try converting it to PNG or JPEG first.');
+    };
+
+    // Set crossOrigin for potential CORS issues
+    img.crossOrigin = 'anonymous';
+    img.src = imageData;
+  }, [updateElementsAndHistory]);
+
+  // Handle file drop - supports all common image formats
+  const handleDrop = useCallback((event) => {
+    event.preventDefault();
+    setIsDraggingFile(false);
+
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Check if it's an image file (by type or extension)
+    const isImage = file.type.startsWith('image/') ||
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff?|heic|heif|avif)$/i.test(file.name);
+
+    if (isImage) {
+      // For HEIC/HEIF files, try to convert using canvas if browser doesn't support
+      const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
+
+      if (isHeic) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new window.Image();
+          img.onload = () => {
+            // Convert to PNG using canvas for better compatibility
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const pngDataUrl = canvas.toDataURL('image/png');
+            handleImageUpload(pngDataUrl);
+          };
+          img.onerror = () => {
+            alert('HEIC/HEIF format is not supported by your browser. Please convert the image to PNG or JPEG first.');
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          handleImageUpload(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  }, [handleImageUpload]);
+
+  const handleDragOver = useCallback((event) => {
+    event.preventDefault();
+    setIsDraggingFile(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event) => {
+    event.preventDefault();
+    setIsDraggingFile(false);
+  }, []);
+
   // Copy selected elements
   const handleCopy = useCallback(() => {
     const selectedElements = canvasRef.current?.getSelectedElements();
@@ -338,6 +455,11 @@ function App() {
             setSelectedTool('arrow');
             event.preventDefault();
             break;
+          case 'i':
+            // Trigger image upload (same as clicking image tool)
+            document.querySelector('input[type="file"][accept="image/*"]')?.click();
+            event.preventDefault();
+            break;
           case 'escape':
             // Deselect all
             canvasRef.current?.clearSelection();
@@ -409,7 +531,12 @@ function App() {
           <a href="https://forms.gle/WShMfsvVaLc34QeaA" target="_blank" rel="noopener noreferrer">Please provide feedback or suggestions!</a>
         </p>
       </header>
-      <div className="main-content-wrapper">
+      <div
+        className={`main-content-wrapper ${isDraggingFile ? 'dragging-file' : ''}`}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+      >
         <Toolbar
           selectedTool={selectedTool}
           setSelectedTool={setSelectedTool}
@@ -439,6 +566,7 @@ function App() {
           onSave={handleManualSave}
           onClearSaved={handleClearSaved}
           hasClipboard={clipboard.length > 0}
+          onImageUpload={handleImageUpload}
         />
         <Canvas
           ref={canvasRef}

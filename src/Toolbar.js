@@ -2,10 +2,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Toolbar.css';
 import {
-  PenTool, Eraser, StickyNote as StickyNoteIcon, Palette,
+  PenTool, Eraser, StickyNote as StickyNoteIcon,
   Undo, Redo, Trash2, Download, Square, Circle, Triangle,
   Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes, Settings,
-  Highlighter, Copy, Clipboard, Save, FolderOpen
+  Highlighter, Copy, Clipboard, Save, Image
 } from 'lucide-react';
 
 const ACCESSIBLE_COLORS = [
@@ -57,7 +57,8 @@ const Toolbar = ({
   stickyNoteColor, setStickyNoteColor,
   toolbarDisplayMode, setToolbarDisplayMode,
   onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDownloadPDF, onDeleteSelected,
-  onCopy, onPaste, onDuplicate, onSave, onClearSaved, hasClipboard
+  onCopy, onPaste, onDuplicate, onSave, onClearSaved, hasClipboard,
+  onImageUpload
 }) => {
   const [showShapesDropdown, setShowShapesDropdown] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -71,6 +72,7 @@ const Toolbar = ({
   const shapesButtonRef = useRef(null);
   const downloadButtonRef = useRef(null);
   const settingsButtonRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   // Calculate dropdown position
   const calculateDropdownPosition = (buttonRef, dropdownWidth = 180) => {
@@ -111,6 +113,7 @@ const Toolbar = ({
     { name: 'eraser', icon: <Eraser size={14} className="tool-icon" />, label: 'Eraser', shortcut: 'E' },
     { name: 'sticky', icon: <StickyNoteIcon size={14} className="tool-icon" />, label: 'Sticky Note', shortcut: 'N' },
     { name: 'text', icon: <Type size={14} className="tool-icon" />, label: 'Text', shortcut: 'T' },
+    { name: 'image', icon: <Image size={14} className="tool-icon" />, label: 'Image', shortcut: 'I' },
   ];
 
   const actionTools = [
@@ -218,6 +221,68 @@ const Toolbar = ({
     setShowSettingsPanel(false);
   };
 
+  // Handle image file selection - supports all common formats
+  const handleImageFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check if it's an image file (by type or extension)
+    const isImage = file.type.startsWith('image/') ||
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff?|heic|heif|avif)$/i.test(file.name);
+
+    if (isImage) {
+      // For HEIC/HEIF files, try to convert using canvas if browser doesn't support
+      const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
+
+      if (isHeic) {
+        // Try to load HEIC - modern Safari and some browsers support it
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new window.Image();
+          img.onload = () => {
+            // Convert to PNG using canvas for better compatibility
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const pngDataUrl = canvas.toDataURL('image/png');
+            onImageUpload?.(pngDataUrl);
+          };
+          img.onerror = () => {
+            alert('HEIC/HEIF format is not supported by your browser. Please convert the image to PNG or JPEG first using an online converter or your photo app.');
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Standard image formats
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          onImageUpload?.(e.target.result);
+        };
+        reader.onerror = () => {
+          alert('Failed to read the image file. Please try again.');
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      alert('Please select a valid image file (PNG, JPEG, GIF, WebP, SVG, etc.)');
+    }
+
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
+  // Handle tool click - special handling for image tool
+  const handleToolClick = (toolName) => {
+    if (toolName === 'image') {
+      imageInputRef.current?.click();
+    } else {
+      setSelectedTool(toolName);
+    }
+  };
+
   // Render button content based on display mode
   const renderButtonContent = (tool) => {
     switch (toolbarDisplayMode) {
@@ -247,13 +312,22 @@ const Toolbar = ({
     <div className="toolbar-wrapper">
       {/* Main Tools Bar */}
       <div className="toolbar-section main-toolbar">
+        {/* Hidden image input - supports all common image formats */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*,.heic,.heif,.webp,.avif,.svg,.bmp,.tiff,.tif,.ico"
+          onChange={handleImageFileChange}
+          style={{ display: 'none' }}
+        />
+
         {/* Main Tools Group */}
         <div className="tool-group main-tools">
           {mainTools.map((tool) => (
             <button
               key={tool.name}
               className={`tool-button ${selectedTool === tool.name ? 'active' : ''} ${toolbarDisplayMode}`}
-              onClick={() => setSelectedTool(tool.name)}
+              onClick={() => handleToolClick(tool.name)}
               title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
             >
               {renderButtonContent(tool)}

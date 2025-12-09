@@ -5,6 +5,10 @@ import './Canvas.css';
 const STICKY_NOTE_WIDTH = 150;
 const STICKY_NOTE_HEIGHT = 100;
 
+// Image handle constants for Canva-style controls
+const HANDLE_SIZE = 10;
+const ROTATION_HANDLE_OFFSET = 25;
+
 const Canvas = forwardRef(({
   selectedTool, strokeColor, fillColor, lineWidth, fontSize, stickyNoteColor, elements,
   onDrawingOrElementComplete,
@@ -32,6 +36,11 @@ const Canvas = forwardRef(({
   const [isSelecting, setIsSelecting] = useState(false);
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Image manipulation states
+  const [imageCache, setImageCache] = useState({}); // Cache loaded images
+  const [resizingImage, setResizingImage] = useState(null); // { id, handle, startX, startY, startWidth, startHeight }
+  const [rotatingImage, setRotatingImage] = useState(null); // { id, startAngle, startRotation }
 
   // High-resolution canvas setup
   const setupHighResCanvas = (canvas, context) => {
@@ -403,6 +412,145 @@ const Canvas = forwardRef(({
     }
   };
 
+  // Draw image element with Canva-style controls
+  const drawImage = (context, element, isExport = false) => {
+    const displayElement = getElementDisplayPosition(element);
+    const { x, y, width, height, rotation = 0, imageData, id } = { ...element, ...displayElement };
+
+    // Get cached image or create new one
+    let img = imageCache[id];
+    if (!img || img.src !== imageData) {
+      img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        setImageCache(prev => ({ ...prev, [id]: img }));
+      };
+      img.onerror = () => {
+        console.error('Failed to load image in canvas:', id);
+        // Still cache it to prevent repeated load attempts
+        setImageCache(prev => ({ ...prev, [id]: null }));
+      };
+      img.src = imageData;
+
+      // Draw placeholder while loading
+      context.save();
+      context.fillStyle = '#f0f0f0';
+      context.strokeStyle = '#ccc';
+      context.lineWidth = 2;
+      context.fillRect(x, y, width, height);
+      context.strokeRect(x, y, width, height);
+      context.fillStyle = '#999';
+      context.font = '14px "Open Sans", Arial, sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('Loading...', x + width / 2, y + height / 2);
+      context.restore();
+      return;
+    }
+
+    // If image failed to load, show error placeholder
+    if (img === null) {
+      context.save();
+      context.fillStyle = '#ffebee';
+      context.strokeStyle = '#f44336';
+      context.lineWidth = 2;
+      context.fillRect(x, y, width, height);
+      context.strokeRect(x, y, width, height);
+      context.fillStyle = '#f44336';
+      context.font = '12px "Open Sans", Arial, sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('Image failed to load', x + width / 2, y + height / 2);
+      context.restore();
+      return;
+    }
+
+    if (!img.complete) {
+      // Draw placeholder while loading
+      context.save();
+      context.fillStyle = '#f0f0f0';
+      context.strokeStyle = '#ccc';
+      context.lineWidth = 2;
+      context.fillRect(x, y, width, height);
+      context.strokeRect(x, y, width, height);
+      context.fillStyle = '#999';
+      context.font = '14px "Open Sans", Arial, sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('Loading...', x + width / 2, y + height / 2);
+      context.restore();
+      return;
+    }
+
+    context.save();
+
+    // Move to image center for rotation
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+    context.translate(centerX, centerY);
+    context.rotate((rotation * Math.PI) / 180);
+    context.translate(-centerX, -centerY);
+
+    // Draw the image
+    context.drawImage(img, x, y, width, height);
+
+    context.restore();
+
+    // Draw selection handles if selected and not exporting
+    if (!isExport && selectedElements.includes(id)) {
+      context.save();
+
+      // Move to image center for rotation
+      context.translate(centerX, centerY);
+      context.rotate((rotation * Math.PI) / 180);
+      context.translate(-centerX, -centerY);
+
+      // Draw border
+      context.strokeStyle = '#0066ff';
+      context.lineWidth = 2;
+      context.setLineDash([]);
+      context.strokeRect(x, y, width, height);
+
+      // Draw corner handles
+      const handles = [
+        { name: 'nw', x: x, y: y },
+        { name: 'ne', x: x + width, y: y },
+        { name: 'se', x: x + width, y: y + height },
+        { name: 'sw', x: x, y: y + height },
+      ];
+
+      context.fillStyle = '#ffffff';
+      context.strokeStyle = '#0066ff';
+      context.lineWidth = 2;
+
+      handles.forEach(handle => {
+        context.beginPath();
+        context.arc(handle.x, handle.y, HANDLE_SIZE / 2, 0, 2 * Math.PI);
+        context.fill();
+        context.stroke();
+      });
+
+      // Draw rotation handle
+      const rotationHandleY = y - ROTATION_HANDLE_OFFSET;
+
+      // Line from top center to rotation handle
+      context.beginPath();
+      context.strokeStyle = '#0066ff';
+      context.lineWidth = 1;
+      context.moveTo(x + width / 2, y);
+      context.lineTo(x + width / 2, rotationHandleY);
+      context.stroke();
+
+      // Rotation handle circle
+      context.beginPath();
+      context.fillStyle = '#0066ff';
+      context.arc(x + width / 2, rotationHandleY, HANDLE_SIZE / 2 + 2, 0, 2 * Math.PI);
+      context.fill();
+
+      context.restore();
+    }
+  };
+
   const redrawAllElements = (context, canvasWidth, canvasHeight, isExport = false) => {
     if (!context) return;
     
@@ -493,21 +641,24 @@ const Canvas = forwardRef(({
       } else if (element.type === 'text') {
         context.globalCompositeOperation = 'source-over';
         if ((editingElementId !== element.id || isExport) && element.text) {
-          drawText(context, element.text, displayElement.x, displayElement.y, 
+          drawText(context, element.text, displayElement.x, displayElement.y,
                   `${element.fontSize}px "Open Sans", Arial, sans-serif`, element.color, isExport);
         }
+      } else if (element.type === 'image') {
+        context.globalCompositeOperation = 'source-over';
+        drawImage(context, element, isExport);
       }
-      
+
       context.globalCompositeOperation = originalGCO;
 
-      // Draw selection indicators (not for export)
-      if (!isExport && selectedElements.includes(element.id)) {
+      // Draw selection indicators (not for export) - skip images as they have custom handles
+      if (!isExport && selectedElements.includes(element.id) && element.type !== 'image') {
         context.save();
         context.globalCompositeOperation = 'source-over';
         context.strokeStyle = '#007bff';
         context.lineWidth = 2;
         context.setLineDash([5, 5]);
-        
+
         if (element.type === 'sticky') {
           context.strokeRect(displayElement.x - 2, displayElement.y - 2, 
                            STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
@@ -686,15 +837,54 @@ const Canvas = forwardRef(({
     elements, isResizingCanvas, editingElementId, selectedElements,
     currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting,
     strokeColor, fillColor, lineWidth, fontSize, stickyNoteColor,
-    currentPath, isDrawing, selectedTool, draggedElementsPositions
+    currentPath, isDrawing, selectedTool, draggedElementsPositions, imageCache
   ]);
+
+  // Check if point is on an image handle (for resize/rotate)
+  const getImageHandleAtPosition = (x, y, element) => {
+    if (element.type !== 'image' || !selectedElements.includes(element.id)) return null;
+
+    const displayElement = getElementDisplayPosition(element);
+    const { x: imgX, y: imgY, width, height, rotation = 0 } = { ...element, ...displayElement };
+
+    // Transform click point to image's local coordinate system
+    const centerX = imgX + width / 2;
+    const centerY = imgY + height / 2;
+    const angle = -(rotation * Math.PI) / 180;
+
+    const rotatedX = Math.cos(angle) * (x - centerX) - Math.sin(angle) * (y - centerY) + centerX;
+    const rotatedY = Math.sin(angle) * (x - centerX) + Math.cos(angle) * (y - centerY) + centerY;
+
+    // Check rotation handle
+    const rotationHandleY = imgY - ROTATION_HANDLE_OFFSET;
+    const rotationHandleX = imgX + width / 2;
+    if (Math.sqrt(Math.pow(rotatedX - rotationHandleX, 2) + Math.pow(rotatedY - rotationHandleY, 2)) <= HANDLE_SIZE) {
+      return 'rotate';
+    }
+
+    // Check corner handles
+    const handles = [
+      { name: 'nw', x: imgX, y: imgY },
+      { name: 'ne', x: imgX + width, y: imgY },
+      { name: 'se', x: imgX + width, y: imgY + height },
+      { name: 'sw', x: imgX, y: imgY + height },
+    ];
+
+    for (const handle of handles) {
+      if (Math.sqrt(Math.pow(rotatedX - handle.x, 2) + Math.pow(rotatedY - handle.y, 2)) <= HANDLE_SIZE) {
+        return handle.name;
+      }
+    }
+
+    return null;
+  };
 
   const getElementAtPosition = (x, y) => {
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
       const displayElement = getElementDisplayPosition(el);
       const ctx = contextRef.current;
-      
+
       if (el.type === 'sticky') {
         if (x >= displayElement.x && x <= displayElement.x + STICKY_NOTE_WIDTH && 
             y >= displayElement.y && y <= displayElement.y + STICKY_NOTE_HEIGHT) {
@@ -738,7 +928,7 @@ const Canvas = forwardRef(({
         const { lineWidth: lw } = el;
         const lenSq = Math.pow(endX - x1, 2) + Math.pow(endY - y1, 2);
         const effectiveLineWidth = Math.max(lw / 2 + 3, 8);
-        
+
         if (lenSq === 0) {
           if (Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2)) < effectiveLineWidth) {
             return el;
@@ -748,10 +938,27 @@ const Canvas = forwardRef(({
           t = Math.max(0, Math.min(1, t));
           const projX = x1 + t * (endX - x1);
           const projY = y1 + t * (endY - y1);
-          
+
           if (Math.sqrt(Math.pow(x - projX, 2) + Math.pow(y - projY, 2)) < effectiveLineWidth) {
             return el;
           }
+        }
+      } else if (el.type === 'image') {
+        const { width, height, rotation = 0 } = el;
+        const imgX = displayElement.x;
+        const imgY = displayElement.y;
+
+        // Transform click point to image's local coordinate system (accounting for rotation)
+        const centerX = imgX + width / 2;
+        const centerY = imgY + height / 2;
+        const angle = -(rotation * Math.PI) / 180;
+
+        const rotatedX = Math.cos(angle) * (x - centerX) - Math.sin(angle) * (y - centerY) + centerX;
+        const rotatedY = Math.sin(angle) * (x - centerX) + Math.cos(angle) * (y - centerY) + centerY;
+
+        if (rotatedX >= imgX && rotatedX <= imgX + width &&
+            rotatedY >= imgY && rotatedY <= imgY + height) {
+          return el;
         }
       }
     }
@@ -817,6 +1024,11 @@ const Canvas = forwardRef(({
         } else {
           return false;
         }
+      } else if (el.type === 'image') {
+        elLeft = displayElement.x;
+        elRight = displayElement.x + el.width;
+        elTop = displayElement.y;
+        elBottom = displayElement.y + el.height;
       } else {
         return false;
       }
@@ -838,23 +1050,58 @@ const Canvas = forwardRef(({
       setCurrentPath([{ x, y }]);
       
     } else if (selectedTool === 'select') {
+      // First check if clicking on image handles
+      for (const el of elements) {
+        if (el.type === 'image' && selectedElements.includes(el.id)) {
+          const handle = getImageHandleAtPosition(x, y, el);
+          if (handle) {
+            if (handle === 'rotate') {
+              // Start rotation
+              const centerX = el.x + el.width / 2;
+              const centerY = el.y + el.height / 2;
+              const startAngle = Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
+              setRotatingImage({
+                id: el.id,
+                startAngle,
+                startRotation: el.rotation || 0
+              });
+              return;
+            } else {
+              // Start resizing
+              setResizingImage({
+                id: el.id,
+                handle,
+                startX: x,
+                startY: y,
+                startWidth: el.width,
+                startHeight: el.height,
+                startElX: el.x,
+                startElY: el.y,
+                aspectRatio: el.width / el.height
+              });
+              return;
+            }
+          }
+        }
+      }
+
       const clickedElement = getElementAtPosition(x, y);
-      
+
       if (clickedElement) {
         if (event.shiftKey) {
-          setSelectedElements(prev => 
-            prev.includes(clickedElement.id) 
+          setSelectedElements(prev =>
+            prev.includes(clickedElement.id)
               ? prev.filter(id => id !== clickedElement.id)
               : [...prev, clickedElement.id]
           );
         } else if (!selectedElements.includes(clickedElement.id)) {
           setSelectedElements([clickedElement.id]);
         }
-        
-        const currentSelectedIds = selectedElements.includes(clickedElement.id) 
-          ? selectedElements 
+
+        const currentSelectedIds = selectedElements.includes(clickedElement.id)
+          ? selectedElements
           : [clickedElement.id];
-        
+
         const selectedElemsData = elements
           .filter(el => currentSelectedIds.includes(el.id))
           .map(el => ({
@@ -862,9 +1109,11 @@ const Canvas = forwardRef(({
             x: el.x,
             y: el.y,
             endX: el.endX,
-            endY: el.endY
+            endY: el.endY,
+            width: el.width,
+            height: el.height
           }));
-          
+
         setDraggingElement({
           ids: currentSelectedIds,
           initialMouseX: x,
@@ -939,6 +1188,71 @@ const Canvas = forwardRef(({
     const { x, y } = getMousePosition(event);
     if (editingElementId) return;
 
+    // Handle image rotation
+    if (rotatingImage) {
+      const element = elements.find(el => el.id === rotatingImage.id);
+      if (element) {
+        const centerX = element.x + element.width / 2;
+        const centerY = element.y + element.height / 2;
+        const currentAngle = Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
+        const deltaAngle = currentAngle - rotatingImage.startAngle;
+        const newRotation = (rotatingImage.startRotation + deltaAngle + 360) % 360;
+
+        setDraggedElementsPositions(prev => ({
+          ...prev,
+          [rotatingImage.id]: { ...prev[rotatingImage.id], rotation: newRotation }
+        }));
+      }
+      return;
+    }
+
+    // Handle image resizing
+    if (resizingImage) {
+      const element = elements.find(el => el.id === resizingImage.id);
+      if (element) {
+        const { handle, startX, startY, startWidth, startHeight, startElX, startElY, aspectRatio } = resizingImage;
+        let deltaX = x - startX;
+        let deltaY = y - startY;
+
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+        let newX = startElX;
+        let newY = startElY;
+
+        // Maintain aspect ratio during resize
+        switch (handle) {
+          case 'se':
+            newWidth = Math.max(50, startWidth + deltaX);
+            newHeight = newWidth / aspectRatio;
+            break;
+          case 'sw':
+            newWidth = Math.max(50, startWidth - deltaX);
+            newHeight = newWidth / aspectRatio;
+            newX = startElX + startWidth - newWidth;
+            break;
+          case 'ne':
+            newWidth = Math.max(50, startWidth + deltaX);
+            newHeight = newWidth / aspectRatio;
+            newY = startElY + startHeight - newHeight;
+            break;
+          case 'nw':
+            newWidth = Math.max(50, startWidth - deltaX);
+            newHeight = newWidth / aspectRatio;
+            newX = startElX + startWidth - newWidth;
+            newY = startElY + startHeight - newHeight;
+            break;
+          default:
+            break;
+        }
+
+        setDraggedElementsPositions(prev => ({
+          ...prev,
+          [resizingImage.id]: { x: newX, y: newY, width: newWidth, height: newHeight }
+        }));
+      }
+      return;
+    }
+
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter')) {
       setCurrentPath(prev => [...prev, { x, y }]);
     } else if (isSelecting && shapeStartPoint) {
@@ -980,6 +1294,40 @@ const Canvas = forwardRef(({
   const handleMouseUp = (event) => {
     event.preventDefault();
     const { x, y } = getMousePosition(event);
+
+    // Commit image rotation
+    if (rotatingImage) {
+      const draggedPos = draggedElementsPositions[rotatingImage.id];
+      if (draggedPos && draggedPos.rotation !== undefined) {
+        updateElementsAndHistory(prevElements =>
+          prevElements.map(el =>
+            el.id === rotatingImage.id
+              ? { ...el, rotation: draggedPos.rotation }
+              : el
+          )
+        );
+      }
+      setRotatingImage(null);
+      setDraggedElementsPositions({});
+      return;
+    }
+
+    // Commit image resize
+    if (resizingImage) {
+      const draggedPos = draggedElementsPositions[resizingImage.id];
+      if (draggedPos) {
+        updateElementsAndHistory(prevElements =>
+          prevElements.map(el =>
+            el.id === resizingImage.id
+              ? { ...el, x: draggedPos.x, y: draggedPos.y, width: draggedPos.width, height: draggedPos.height }
+              : el
+          )
+        );
+      }
+      setResizingImage(null);
+      setDraggedElementsPositions({});
+      return;
+    }
 
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter')) {
       setIsDrawing(false);
@@ -1093,6 +1441,12 @@ const Canvas = forwardRef(({
   let canvasCursor = 'auto';
   if (editingElementId) {
     canvasCursor = 'text';
+  } else if (rotatingImage) {
+    canvasCursor = 'grabbing';
+  } else if (resizingImage) {
+    const handle = resizingImage.handle;
+    if (handle === 'nw' || handle === 'se') canvasCursor = 'nwse-resize';
+    else if (handle === 'ne' || handle === 'sw') canvasCursor = 'nesw-resize';
   } else if (selectedTool === 'pen') {
     canvasCursor = 'crosshair';
   } else if (selectedTool === 'eraser') {

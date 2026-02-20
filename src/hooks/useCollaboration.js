@@ -89,7 +89,7 @@ export const useCollaboration = (updateElementsAndHistory, currentState) => {
                 });
             }
         }
-    }, [isConnected, collabRoomId]); // Depend on currentState might cause loops. 
+    }, [isConnected, collabRoomId, currentState]);
 
     const emitDraw = useCallback((element) => {
         if (!collabRoomId || !ydocRef.current) return;

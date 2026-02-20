@@ -741,6 +741,8 @@ function App() {
             handleDeleteSelected();
             event.preventDefault();
             break;
+          default:
+            break;
         }
       }
 
@@ -779,6 +781,8 @@ function App() {
             // Select all
             canvasRef.current?.selectAll();
             event.preventDefault();
+            break;
+          default:
             break;
         }
       }

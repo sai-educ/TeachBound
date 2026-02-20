@@ -1045,6 +1045,9 @@ const Canvas = forwardRef(({
     if (contextRef.current && !isResizingCanvas) {
       redrawAll(contextRef.current);
     }
+    // redrawAll is intentionally not listed to avoid re-registering this effect
+    // on each render because redrawAll is recreated with current draw state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     elements, isResizingCanvas, editingElementId, selectedElements,
     currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting,

@@ -4,24 +4,25 @@ import './Toolbar.css';
 import {
   PenTool, Eraser, StickyNote as StickyNoteIcon,
   Undo, Redo, Trash2, Download, Square, Circle, Triangle,
-  Minus, ArrowRight, Type, MousePointer, Trash, ChevronDown, Shapes, Settings,
-  Highlighter, Copy, Clipboard, Save, Image
+  Type, MousePointer, Trash, ChevronDown, Shapes, Settings,
+  Highlighter, Copy, Clipboard, Save, Image, Share2, Minus, ArrowRight,
+  List, ListOrdered
 } from 'lucide-react';
 
 const ACCESSIBLE_COLORS = [
-  { name: 'Black', value: '#000000' }, 
+  { name: 'Black', value: '#000000' },
   { name: 'Red', value: '#D90429' },
-  { name: 'Blue', value: '#0077B6' }, 
+  { name: 'Blue', value: '#0077B6' },
   { name: 'Green', value: '#06A77D' },
   { name: 'Purple', value: '#7209B7' },
 ];
 
 const STICKY_NOTE_COLORS = [
-  { name: 'Yellow', value: '#FFFACD' }, 
+  { name: 'Yellow', value: '#FFFACD' },
   { name: 'Pink', value: '#FFB6C1' },
-  { name: 'Light Blue', value: '#ADD8E6' }, 
+  { name: 'Light Blue', value: '#ADD8E6' },
   { name: 'Light Green', value: '#90EE90' },
-  { name: 'Orange', value: '#FFE4B5' }, 
+  { name: 'Orange', value: '#FFE4B5' },
   { name: 'Lavender', value: '#E6E6FA' },
 ];
 
@@ -35,9 +36,9 @@ const FILL_COLORS = [
 ];
 
 const LINE_WIDTHS = [
-  { label: 'Thin', value: 2 }, 
+  { label: 'Thin', value: 2 },
   { label: 'Medium', value: 5 },
-  { label: 'Thick', value: 10 }, 
+  { label: 'Thick', value: 10 },
   { label: 'Extra Thick', value: 20 },
 ];
 
@@ -48,24 +49,31 @@ const FONT_SIZES = [
   { label: 'Extra Large', value: 32 },
 ];
 
+const TEXT_LIST_OPTIONS = [
+  { name: 'none', label: 'Plain' },
+  { name: 'bullet', label: 'Bulleted', icon: <List size={14} className="tool-icon" /> },
+  { name: 'numbered', label: 'Numbered', icon: <ListOrdered size={14} className="tool-icon" /> },
+];
+
 const Toolbar = ({
   selectedTool, setSelectedTool,
   strokeColor, setStrokeColor,
   fillColor, setFillColor,
   lineWidth, setLineWidth,
   fontSize, setFontSize,
+  textListType, onTextListTypeChange,
   stickyNoteColor, setStickyNoteColor,
   toolbarDisplayMode, setToolbarDisplayMode,
   onUndo, onRedo, onClearFrame, canUndo, canRedo, onDownloadPNG, onDownloadPDF, onDeleteSelected,
   onCopy, onPaste, onDuplicate, onSave, onClearSaved, hasClipboard,
-  onImageUpload
+  onImageUpload, onShare
 }) => {
   const [showShapesDropdown, setShowShapesDropdown] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [tempDisplayMode, setTempDisplayMode] = useState(toolbarDisplayMode);
   const [dropdownPositions, setDropdownPositions] = useState({});
-  
+
   const shapesDropdownRef = useRef(null);
   const downloadDropdownRef = useRef(null);
   const settingsPanelRef = useRef(null);
@@ -77,27 +85,26 @@ const Toolbar = ({
   // Calculate dropdown position
   const calculateDropdownPosition = (buttonRef, dropdownWidth = 180) => {
     if (!buttonRef.current) return {};
-    
+
     const buttonRect = buttonRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    
+
     // Position above the button by default
     let top = buttonRect.top - 10; // 10px margin above button
     let left = buttonRect.left;
-    
+
     // Adjust if dropdown would go off screen
     if (left + dropdownWidth > viewportWidth) {
       left = viewportWidth - dropdownWidth - 10;
     }
-    
+
     if (top < 10) {
       top = buttonRect.bottom + 10; // Position below if no room above
     }
-    
+
     return { top, left };
   };
-  
+
   const shapeTools = [
     { name: 'rectangle', icon: <Square size={14} className="tool-icon" />, label: 'Rectangle' },
     { name: 'circle', icon: <Circle size={14} className="tool-icon" />, label: 'Circle' },
@@ -124,6 +131,7 @@ const Toolbar = ({
     { name: 'delete', icon: <Trash size={14} />, label: 'Delete', action: onDeleteSelected, shortcut: 'Del' },
     { name: 'clear', icon: <Trash2 size={14} />, label: 'Clear', action: onClearFrame },
     { name: 'save', icon: <Save size={14} />, label: 'Save', action: onSave, shortcut: '⌘S' },
+    { name: 'share', icon: <Share2 size={14} />, label: 'Share', action: onShare },
   ];
 
   // Get current shape icon for shapes button
@@ -144,7 +152,7 @@ const Toolbar = ({
       const isShapesButton = shapesButtonRef.current?.contains(event.target);
       const isDownloadButton = downloadButtonRef.current?.contains(event.target);
       const isSettingsButton = settingsButtonRef.current?.contains(event.target);
-      
+
       // Only close if clicking outside both button and dropdown
       if (!isShapesButton && shapesDropdownRef.current && !shapesDropdownRef.current.contains(event.target)) {
         setShowShapesDropdown(false);
@@ -357,9 +365,9 @@ const Toolbar = ({
               )}
             </button>
             <DropdownPortal show={showShapesDropdown}>
-              <div 
+              <div
                 ref={shapesDropdownRef}
-                className="dropdown-menu shapes-dropdown" 
+                className="dropdown-menu shapes-dropdown"
                 style={{
                   top: `${dropdownPositions.shapes?.top || 0}px`,
                   left: `${dropdownPositions.shapes?.left || 0}px`,
@@ -411,14 +419,14 @@ const Toolbar = ({
                 onClick={() => setLineWidth(widthOption.value)}
                 title={widthOption.label}
               >
-                <span 
+                <span
                   className="line-preview"
-                  style={{ 
-                    display: 'inline-block', 
-                    width: '16px', 
-                    height: `${Math.min(widthOption.value, 12)}px`, 
-                    backgroundColor: strokeColor === '#ffffff' ? '#cccccc' : strokeColor, 
-                    borderRadius: '2px' 
+                  style={{
+                    display: 'inline-block',
+                    width: '16px',
+                    height: `${Math.min(widthOption.value, 12)}px`,
+                    backgroundColor: strokeColor === '#ffffff' ? '#cccccc' : strokeColor,
+                    borderRadius: '2px'
                   }}
                 ></span>
               </button>
@@ -468,7 +476,7 @@ const Toolbar = ({
               )}
             </button>
             <DropdownPortal show={showDownloadDropdown}>
-              <div 
+              <div
                 ref={downloadDropdownRef}
                 className="dropdown-menu download-dropdown"
                 style={{
@@ -508,9 +516,9 @@ const Toolbar = ({
             >
               <Settings size={14} />
             </button>
-            
+
             <DropdownPortal show={showSettingsPanel}>
-              <div 
+              <div
                 ref={settingsPanelRef}
                 className="settings-panel"
                 style={{
@@ -601,9 +609,9 @@ const Toolbar = ({
                   <button
                     key={color.value}
                     className={`color-button fill-button ${fillColor === color.value ? 'active' : ''}`}
-                    style={{ 
+                    style={{
                       backgroundColor: color.value === 'transparent' ? '#ffffff' : color.value,
-                      backgroundImage: color.value === 'transparent' 
+                      backgroundImage: color.value === 'transparent'
                         ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)'
                         : 'none',
                       backgroundSize: '6px 6px',
@@ -630,6 +638,25 @@ const Toolbar = ({
                     title={sizeOption.label}
                   >
                     {sizeOption.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showTextOptions && (
+            <div className="tool-group tool-options-group">
+              <span className="options-label">List:</span>
+              <div className="text-list-selection">
+                {TEXT_LIST_OPTIONS.map((listOption) => (
+                  <button
+                    key={listOption.name}
+                    className={`tool-button text-list-button ${textListType === listOption.name ? 'active' : ''}`}
+                    onClick={() => onTextListTypeChange?.(listOption.name)}
+                    title={listOption.label}
+                  >
+                    {listOption.icon || null}
+                    <span className="tool-label">{listOption.label}</span>
                   </button>
                 ))}
               </div>

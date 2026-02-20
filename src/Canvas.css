@@ -19,19 +19,10 @@
   display: block;
   max-width: 100%;
   max-height: 100%;
-  /* Width and height are set dynamically by JavaScript */
-  
-  /* Ensure crisp rendering */
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-}
+  touch-action: none;
 
-/* Touch device optimizations */
-@media (pointer: coarse) {
-  #main-canvas {
-    touch-action: none; /* Disable browser touch gestures */
-  }
+  /* Width and height are set dynamically by JavaScript */
+  image-rendering: auto;
 }
 
 /* High DPI display optimizations */

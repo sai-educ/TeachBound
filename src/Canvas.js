@@ -1,5 +1,5 @@
 // src/Canvas.js
-import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 import './Canvas.css';
 
 const STICKY_NOTE_WIDTH = 150;
@@ -8,15 +8,20 @@ const STICKY_NOTE_HEIGHT = 100;
 // Image handle constants for Canva-style controls
 const HANDLE_SIZE = 10;
 const ROTATION_HANDLE_OFFSET = 25;
+const PRECISE_LINE_CURSOR = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M12 0v24M0 12h24' stroke='black' stroke-width='1'/><circle cx='12' cy='12' r='1.5' fill='black'/></svg>") 12 12, crosshair`;
 
 const Canvas = forwardRef(({
-  selectedTool, strokeColor, fillColor, lineWidth, fontSize, stickyNoteColor, elements,
+  selectedTool, strokeColor, fillColor, lineWidth, fontSize, textListType, stickyNoteColor, elements,
   onDrawingOrElementComplete,
   updateElementsAndHistory,
   editingElementId,
   activateStickyNoteEditing,
-  activateTextEditing
+  activateTextEditing,
+  onTextCanvasClickWhileEditing,
+  onCursorMove,
+  remoteCursors
 }, ref) => {
+
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
   const devicePixelRatioRef = useRef(1);
@@ -36,29 +41,75 @@ const Canvas = forwardRef(({
   const [isSelecting, setIsSelecting] = useState(false);
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const lastCursorEmitRef = useRef(0);
+  const mousePositionRef = useRef({ x: 0, y: 0 });
 
   // Image manipulation states
   const [imageCache, setImageCache] = useState({}); // Cache loaded images
+  const imageCacheRef = useRef({});
   const [resizingImage, setResizingImage] = useState(null); // { id, handle, startX, startY, startWidth, startHeight }
   const [rotatingImage, setRotatingImage] = useState(null); // { id, startAngle, startRotation }
+  const currentPathRef = useRef([]);
+  const draggedElementsPositionsRef = useRef({});
+  const rafUpdateRef = useRef(null);
+  const pendingVisualUpdatesRef = useRef({});
+
+  const scheduleVisualUpdate = useCallback((updates) => {
+    pendingVisualUpdatesRef.current = {
+      ...pendingVisualUpdatesRef.current,
+      ...updates
+    };
+
+    if (rafUpdateRef.current !== null) return;
+
+    rafUpdateRef.current = requestAnimationFrame(() => {
+      rafUpdateRef.current = null;
+      const pending = pendingVisualUpdatesRef.current;
+      pendingVisualUpdatesRef.current = {};
+      const hasOwn = Object.prototype.hasOwnProperty;
+
+      if (hasOwn.call(pending, 'mousePosition')) {
+        setMousePosition(pending.mousePosition);
+      }
+      if (pending.currentPathDirty) {
+        setCurrentPath([...currentPathRef.current]);
+      } else if (hasOwn.call(pending, 'currentPath')) {
+        setCurrentPath(pending.currentPath);
+      }
+      if (hasOwn.call(pending, 'selectionRect')) {
+        setSelectionRect(pending.selectionRect);
+      }
+      if (hasOwn.call(pending, 'draggedElementsPositions')) {
+        setDraggedElementsPositions(pending.draggedElementsPositions);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (rafUpdateRef.current !== null) {
+        cancelAnimationFrame(rafUpdateRef.current);
+      }
+    };
+  }, []);
 
   // High-resolution canvas setup
   const setupHighResCanvas = (canvas, context) => {
     const rect = canvas.getBoundingClientRect();
     const devicePixelRatio = window.devicePixelRatio || 1;
     devicePixelRatioRef.current = devicePixelRatio;
-    
+
     // Set the actual size in memory (scaled up for high DPI)
     canvas.width = rect.width * devicePixelRatio;
     canvas.height = rect.height * devicePixelRatio;
-    
+
     // Scale the canvas back down using CSS
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
-    
+
     // Scale the drawing context so everything draws at the correct size
     context.scale(devicePixelRatio, devicePixelRatio);
-    
+
     // Set context properties for crisp rendering
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
@@ -66,7 +117,7 @@ const Canvas = forwardRef(({
     context.textAlign = 'left';
     context.lineCap = 'round';
     context.lineJoin = 'round';
-    
+
     return devicePixelRatio;
   };
 
@@ -74,30 +125,30 @@ const Canvas = forwardRef(({
     getSelectedElements: () => {
       return elements.filter(el => selectedElements.includes(el.id));
     },
-    
+
     clearSelection: () => {
       setSelectedElements([]);
     },
-    
+
     selectAll: () => {
       setSelectedElements(elements.map(el => el.id));
     },
-    
+
     downloadAsPNG: (scale = 1) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      
+
       const rect = canvas.getBoundingClientRect();
       const exportScale = scale * (window.devicePixelRatio || 1);
-      
+
       // Create high-resolution offscreen canvas
       const offscreenCanvas = document.createElement('canvas');
       offscreenCanvas.width = rect.width * exportScale;
       offscreenCanvas.height = rect.height * exportScale;
-      
+
       const offscreenCtx = offscreenCanvas.getContext('2d');
       offscreenCtx.scale(exportScale, exportScale);
-      
+
       // Set high-quality rendering properties
       offscreenCtx.imageSmoothingEnabled = true;
       offscreenCtx.imageSmoothingQuality = 'high';
@@ -105,14 +156,14 @@ const Canvas = forwardRef(({
       offscreenCtx.textAlign = 'left';
       offscreenCtx.lineCap = 'round';
       offscreenCtx.lineJoin = 'round';
-      
+
       // Fill with white background
       offscreenCtx.fillStyle = '#FFFFFF';
       offscreenCtx.fillRect(0, 0, rect.width, rect.height);
-      
+
       // Redraw all elements at high resolution
       redrawAllElements(offscreenCtx, rect.width, rect.height, true);
-      
+
       // Download the image
       offscreenCanvas.toBlob((blob) => {
         const url = URL.createObjectURL(blob);
@@ -125,24 +176,24 @@ const Canvas = forwardRef(({
         URL.revokeObjectURL(url);
       }, 'image/png', 1.0);
     },
-    
+
     downloadAsPDF: () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      
+
       // Create a new window for printing
       const printWindow = window.open('', '_blank');
       const rect = canvas.getBoundingClientRect();
-      
+
       // Create high-resolution canvas for PDF
       const pdfCanvas = document.createElement('canvas');
       const pdfScale = 2; // High resolution for PDF
       pdfCanvas.width = rect.width * pdfScale;
       pdfCanvas.height = rect.height * pdfScale;
-      
+
       const pdfCtx = pdfCanvas.getContext('2d');
       pdfCtx.scale(pdfScale, pdfScale);
-      
+
       // Set high-quality rendering properties
       pdfCtx.imageSmoothingEnabled = true;
       pdfCtx.imageSmoothingQuality = 'high';
@@ -150,17 +201,17 @@ const Canvas = forwardRef(({
       pdfCtx.textAlign = 'left';
       pdfCtx.lineCap = 'round';
       pdfCtx.lineJoin = 'round';
-      
+
       // Fill with white background
       pdfCtx.fillStyle = '#FFFFFF';
       pdfCtx.fillRect(0, 0, rect.width, rect.height);
-      
+
       // Redraw all elements
       redrawAllElements(pdfCtx, rect.width, rect.height, true);
-      
+
       // Get the image data
       const imageDataUrl = pdfCanvas.toDataURL('image/png', 1.0);
-      
+
       // Create HTML content for PDF printing
       const htmlContent = `
         <!DOCTYPE html>
@@ -213,14 +264,14 @@ const Canvas = forwardRef(({
         </body>
         </html>
       `;
-      
+
       // Write content to new window and trigger print
       printWindow.document.write(htmlContent);
       printWindow.document.close();
     },
-    
+
     getCanvasGlobalRect: () => canvasRef.current?.getBoundingClientRect(),
-    
+
     deleteSelectedElements: () => {
       if (selectedElements.length > 0) {
         updateElementsAndHistory(prevElements =>
@@ -234,15 +285,29 @@ const Canvas = forwardRef(({
   const getMousePosition = (event) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    
+
     const rect = canvas.getBoundingClientRect();
     const clientX = event.clientX || (event.touches && event.touches[0].clientX);
     const clientY = event.clientY || (event.touches && event.touches[0].clientY);
-    
+
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     const newMousePos = { x: Math.round(x), y: Math.round(y) };
-    setMousePosition(newMousePos);
+    if (
+      newMousePos.x !== mousePositionRef.current.x ||
+      newMousePos.y !== mousePositionRef.current.y
+    ) {
+      mousePositionRef.current = newMousePos;
+      scheduleVisualUpdate({ mousePosition: newMousePos });
+    }
+
+    // Emit cursor move (throttle to 50ms)
+    const now = Date.now();
+    if (onCursorMove && now - lastCursorEmitRef.current > 50) {
+      onCursorMove(newMousePos.x, newMousePos.y, strokeColor); // Sharing stroke color as ID color or just assign random
+      lastCursorEmitRef.current = now;
+    }
+
     return newMousePos;
   };
 
@@ -254,16 +319,124 @@ const Canvas = forwardRef(({
     return element;
   };
 
+  const getStrokeDragOffset = (element, displayElement) => {
+    if (displayElement.deltaX !== undefined || displayElement.deltaY !== undefined) {
+      return {
+        offsetX: displayElement.deltaX || 0,
+        offsetY: displayElement.deltaY || 0
+      };
+    }
+
+    if (
+      displayElement.x !== undefined &&
+      displayElement.y !== undefined &&
+      element.x !== undefined &&
+      element.y !== undefined
+    ) {
+      return {
+        offsetX: displayElement.x - element.x,
+        offsetY: displayElement.y - element.y
+      };
+    }
+
+    return { offsetX: 0, offsetY: 0 };
+  };
+
+  const getTextBounds = (element, displayElement, context) => {
+    const originalFont = context.font;
+    context.font = `${element.fontSize}px "Open Sans", Arial, sans-serif`;
+    const lines = (element.text || '').split('\n');
+    const lineHeight = element.fontSize * 1.2;
+    const textWidth = Math.max(
+      6,
+      lines.reduce((maxWidth, line) => Math.max(maxWidth, context.measureText(line).width), 0)
+    );
+    context.font = originalFont;
+
+    return {
+      left: displayElement.x,
+      right: displayElement.x + textWidth,
+      top: displayElement.y,
+      bottom: displayElement.y + lineHeight * Math.max(1, lines.length)
+    };
+  };
+
+  const pointToSegmentDistance = (px, py, x1, y1, x2, y2) => {
+    const lenSq = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2);
+    if (lenSq === 0) {
+      return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+    }
+
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const projX = x1 + t * (x2 - x1);
+    const projY = y1 + t * (y2 - y1);
+    return Math.sqrt(Math.pow(px - projX, 2) + Math.pow(py - projY, 2));
+  };
+
+  const getStrokeBounds = (element, displayElement) => {
+    if (!element.path || element.path.length === 0) return null;
+
+    const { offsetX, offsetY } = getStrokeDragOffset(element, displayElement);
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+
+    element.path.forEach((point) => {
+      const adjustedX = point.x + offsetX;
+      const adjustedY = point.y + offsetY;
+      if (adjustedX < left) left = adjustedX;
+      if (adjustedX > right) right = adjustedX;
+      if (adjustedY < top) top = adjustedY;
+      if (adjustedY > bottom) bottom = adjustedY;
+    });
+
+    return { left, right, top, bottom };
+  };
+
+  const isPointNearStroke = (x, y, element, displayElement) => {
+    if (!element.path || element.path.length === 0) return false;
+
+    const { offsetX, offsetY } = getStrokeDragOffset(element, displayElement);
+    const threshold = Math.max((element.lineWidth || 1) / 2 + 4, 8);
+
+    if (element.path.length === 1) {
+      const point = element.path[0];
+      return Math.sqrt(
+        Math.pow(x - (point.x + offsetX), 2) + Math.pow(y - (point.y + offsetY), 2)
+      ) <= threshold;
+    }
+
+    for (let index = 1; index < element.path.length; index += 1) {
+      const start = element.path[index - 1];
+      const end = element.path[index];
+      const distance = pointToSegmentDistance(
+        x,
+        y,
+        start.x + offsetX,
+        start.y + offsetY,
+        end.x + offsetX,
+        end.y + offsetY
+      );
+      if (distance <= threshold) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const drawShape = (context, type, startX, startY, endX, endY, options = {}) => {
     context.strokeStyle = options.strokeColor || strokeColor;
     context.fillStyle = options.fillColor || fillColor;
     context.lineWidth = options.lineWidth || lineWidth;
-    
+
     const originalGCO = context.globalCompositeOperation;
     context.globalCompositeOperation = 'source-over';
 
     context.beginPath();
-    
+
     switch (type) {
       case 'rectangle':
         const rectWidth = endX - startX;
@@ -274,11 +447,11 @@ const Canvas = forwardRef(({
         }
         context.stroke();
         break;
-        
+
       case 'circle':
         // Use radius if provided in options, otherwise calculate from points
-        const radius = options.radius !== undefined 
-          ? options.radius 
+        const radius = options.radius !== undefined
+          ? options.radius
           : Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
         context.arc(startX, startY, radius, 0, 2 * Math.PI);
         if (options.fillColor && options.fillColor !== 'transparent') {
@@ -286,46 +459,46 @@ const Canvas = forwardRef(({
         }
         context.stroke();
         break;
-        
+
       case 'triangle':
         // Draw an equilateral triangle with base horizontal
         const width = Math.abs(endX - startX);
         const height = Math.abs(endY - startY);
         const triangleHeight = Math.max(height, width * 0.866); // Maintain proportion
-        
+
         // Calculate triangle points
         const centerX = (startX + endX) / 2;
         const baseY = Math.max(startY, endY);
         const apexY = baseY - triangleHeight;
-        
+
         context.moveTo(startX, baseY); // Bottom left
         context.lineTo(endX, baseY);   // Bottom right
         context.lineTo(centerX, apexY); // Top center
         context.closePath();
-        
+
         if (options.fillColor && options.fillColor !== 'transparent') {
           context.fill();
         }
         context.stroke();
         break;
-        
+
       case 'line':
         context.moveTo(startX, startY);
         context.lineTo(endX, endY);
         context.stroke();
         break;
-        
+
       case 'arrow':
         // Draw the main line
         context.moveTo(startX, startY);
         context.lineTo(endX, endY);
         context.stroke();
-        
+
         // Draw arrowhead
         const angle = Math.atan2(endY - startY, endX - startX);
         const arrowLength = Math.min(25, Math.max(15, (options.lineWidth || lineWidth) * 3));
         const arrowAngle = Math.PI / 6; // 30 degrees
-        
+
         context.beginPath();
         context.moveTo(endX, endY);
         context.lineTo(
@@ -339,24 +512,24 @@ const Canvas = forwardRef(({
         );
         context.stroke();
         break;
-        
-      default: 
+
+      default:
         break;
     }
-    
+
     context.globalCompositeOperation = originalGCO;
   };
 
   const drawText = (context, text, x, y, font, color, isExport = false) => {
-    if (!text || (editingElementId && !isExport)) return;
-    
+    if (!text) return;
+
     context.fillStyle = color || '#000000';
     context.font = font || `${fontSize}px "Open Sans", Arial, sans-serif`;
-    
+
     // Handle multi-line text
     const lines = text.split('\n');
     const lineHeight = parseInt(font || fontSize) * 1.2;
-    
+
     lines.forEach((line, index) => {
       context.fillText(line, x, y + (index * lineHeight));
     });
@@ -367,28 +540,28 @@ const Canvas = forwardRef(({
     const { x, y } = displayElement;
     const { text, backgroundColor, id } = element;
     const noteColor = backgroundColor || stickyNoteColor;
-    
+
     // Draw sticky note background
     context.fillStyle = noteColor;
     context.strokeStyle = '#333333';
     context.lineWidth = 1;
-    
+
     context.beginPath();
     context.roundRect(x, y, STICKY_NOTE_WIDTH, STICKY_NOTE_HEIGHT, 4);
     context.fill();
     context.stroke();
-    
+
     // Draw text if not currently editing or if exporting
     if ((editingElementId !== id || isExport) && text) {
       context.fillStyle = '#000000';
       context.font = '14px "Open Sans", Arial, sans-serif';
-      
+
       const textPadding = 10;
       const maxWidth = STICKY_NOTE_WIDTH - 2 * textPadding;
       let textY = y + textPadding + 14;
-      
+
       const lines = text.split('\n');
-      
+
       lines.forEach(currentLineText => {
         let textToProcess = currentLineText;
         while (textToProcess.length > 0 && textY < y + STICKY_NOTE_HEIGHT - textPadding) {
@@ -398,7 +571,7 @@ const Canvas = forwardRef(({
             if (context.measureText(testSegment).width > maxWidth) break;
             segment = testSegment;
           }
-          
+
           if (segment) {
             context.fillText(segment, x + textPadding, textY);
             textY += 16;
@@ -418,18 +591,21 @@ const Canvas = forwardRef(({
     const { x, y, width, height, rotation = 0, imageData, id } = { ...element, ...displayElement };
 
     // Get cached image or create new one
-    let img = imageCache[id];
+    let img = imageCacheRef.current[id] ?? imageCache[id];
     if (!img || img.src !== imageData) {
       img = new window.Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        setImageCache(prev => ({ ...prev, [id]: img }));
+        setImageCache(prev => ({ ...prev }));
       };
       img.onerror = () => {
         console.error('Failed to load image in canvas:', id);
         // Still cache it to prevent repeated load attempts
+        imageCacheRef.current = { ...imageCacheRef.current, [id]: null };
         setImageCache(prev => ({ ...prev, [id]: null }));
       };
+      imageCacheRef.current = { ...imageCacheRef.current, [id]: img };
+      setImageCache(prev => ({ ...prev, [id]: img }));
       img.src = imageData;
 
       // Draw placeholder while loading
@@ -553,11 +729,11 @@ const Canvas = forwardRef(({
 
   const redrawAllElements = (context, canvasWidth, canvasHeight, isExport = false) => {
     if (!context) return;
-    
+
     elements.forEach(element => {
       const originalGCO = context.globalCompositeOperation;
       const displayElement = getElementDisplayPosition(element);
-      
+
       if (element.type === 'stroke') {
         if (element.isEraser) {
           context.globalCompositeOperation = 'destination-out';
@@ -571,12 +747,11 @@ const Canvas = forwardRef(({
           context.strokeStyle = element.color;
         }
         context.lineWidth = element.lineWidth;
-        
+
         if (element.path && element.path.length > 0) {
-          // For strokes, we need to apply offset to the entire path if being dragged
-          const offsetX = displayElement.x !== undefined ? displayElement.x - element.x : 0;
-          const offsetY = displayElement.y !== undefined ? displayElement.y - element.y : 0;
-          
+          // For strokes, apply drag offset (strokes don't store a single x/y origin).
+          const { offsetX, offsetY } = getStrokeDragOffset(element, displayElement);
+
           context.beginPath();
           element.path.forEach((point, index) => {
             const adjustedX = point.x + offsetX;
@@ -588,19 +763,19 @@ const Canvas = forwardRef(({
             }
           });
           context.stroke();
-          
+
           if (element.isHighlighter) {
             context.globalAlpha = 1;
           }
         }
-        
+
       } else if (element.type === 'sticky') {
         context.globalCompositeOperation = 'source-over';
         drawStickyNote(context, element, isExport);
-        
+
       } else if (['rectangle', 'circle', 'triangle', 'line', 'arrow'].includes(element.type)) {
         context.globalCompositeOperation = 'source-over';
-        
+
         // Handle different shape types properly
         if (element.type === 'rectangle') {
           const endX = displayElement.x + element.width;
@@ -637,12 +812,12 @@ const Canvas = forwardRef(({
             lineWidth: element.lineWidth
           });
         }
-        
+
       } else if (element.type === 'text') {
         context.globalCompositeOperation = 'source-over';
         if ((editingElementId !== element.id || isExport) && element.text) {
           drawText(context, element.text, displayElement.x, displayElement.y,
-                  `${element.fontSize}px "Open Sans", Arial, sans-serif`, element.color, isExport);
+            `${element.fontSize}px "Open Sans", Arial, sans-serif`, element.color, isExport);
         }
       } else if (element.type === 'image') {
         context.globalCompositeOperation = 'source-over';
@@ -660,18 +835,19 @@ const Canvas = forwardRef(({
         context.setLineDash([5, 5]);
 
         if (element.type === 'sticky') {
-          context.strokeRect(displayElement.x - 2, displayElement.y - 2, 
-                           STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
+          context.strokeRect(displayElement.x - 2, displayElement.y - 2,
+            STICKY_NOTE_WIDTH + 4, STICKY_NOTE_HEIGHT + 4);
         } else if (element.type === 'text') {
-          const tempFont = context.font;
-          context.font = `${element.fontSize}px "Open Sans", Arial, sans-serif`;
-          const textWidth = context.measureText(element.text || '').width;
-          context.font = tempFont;
-          context.strokeRect(displayElement.x - 2, displayElement.y - element.fontSize - 2, 
-                           textWidth + 4, element.fontSize + 8);
+          const bounds = getTextBounds(element, displayElement, context);
+          context.strokeRect(
+            bounds.left - 2,
+            bounds.top - 2,
+            bounds.right - bounds.left + 4,
+            bounds.bottom - bounds.top + 4
+          );
         } else if (element.type === 'rectangle') {
-          context.strokeRect(displayElement.x - 2, displayElement.y - 2, 
-                           element.width + 4, element.height + 4);
+          context.strokeRect(displayElement.x - 2, displayElement.y - 2,
+            element.width + 4, element.height + 4);
         } else if (element.type === 'circle') {
           context.beginPath();
           context.arc(displayElement.x, displayElement.y, element.radius + 2, 0, 2 * Math.PI);
@@ -691,8 +867,18 @@ const Canvas = forwardRef(({
           context.fillStyle = '#007bff';
           context.fillRect(displayElement.x - 4, displayElement.y - 4, 8, 8);
           context.fillRect(endX - 4, endY - 4, 8, 8);
+        } else if (element.type === 'stroke') {
+          const strokeBounds = getStrokeBounds(element, displayElement);
+          if (strokeBounds) {
+            context.strokeRect(
+              strokeBounds.left - 4,
+              strokeBounds.top - 4,
+              strokeBounds.right - strokeBounds.left + 8,
+              strokeBounds.bottom - strokeBounds.top + 8
+            );
+          }
         }
-        
+
         context.restore();
       }
     });
@@ -700,17 +886,17 @@ const Canvas = forwardRef(({
 
   const redrawAll = (context) => {
     if (!context || !context.canvas) return;
-    
+
     const rect = context.canvas.getBoundingClientRect();
     const canvasWidth = rect.width;
     const canvasHeight = rect.height;
-    
+
     // Clear and set background
     context.save();
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
     context.restore();
-    
+
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvasWidth, canvasHeight);
 
@@ -720,7 +906,7 @@ const Canvas = forwardRef(({
     // Draw current live stroke (pen/eraser/highlighter)
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter') && currentPath.length > 0) {
       const originalGCO = context.globalCompositeOperation;
-      
+
       if (selectedTool === 'eraser') {
         context.globalCompositeOperation = 'destination-out';
         context.strokeStyle = 'rgba(0,0,0,1)';
@@ -745,11 +931,11 @@ const Canvas = forwardRef(({
         }
       });
       context.stroke();
-      
+
       if (selectedTool === 'highlighter') {
         context.globalAlpha = 1;
       }
-      
+
       context.globalCompositeOperation = originalGCO;
     }
 
@@ -757,8 +943,8 @@ const Canvas = forwardRef(({
     if (currentShape && shapeStartPoint) {
       context.save();
       context.globalCompositeOperation = 'source-over';
-      drawShape(context, currentShape, shapeStartPoint.x, shapeStartPoint.y, 
-               mousePosition.x, mousePosition.y, { strokeColor, fillColor, lineWidth });
+      drawShape(context, currentShape, shapeStartPoint.x, shapeStartPoint.y,
+        mousePosition.x, mousePosition.y, { strokeColor, fillColor, lineWidth });
       context.restore();
     }
 
@@ -777,16 +963,42 @@ const Canvas = forwardRef(({
       context.restore();
     }
 
+    // Draw remote cursors
+    if (remoteCursors) {
+      Object.entries(remoteCursors).forEach(([clientId, cursor]) => {
+        if (!cursor) return;
+        const { x, y, color } = cursor;
+        
+        context.save();
+        context.globalCompositeOperation = 'source-over';
+        
+        // Draw cursor arrow
+        context.beginPath();
+        context.fillStyle = color || '#ff0000';
+        context.strokeStyle = 'white';
+        context.lineWidth = 1;
+        context.moveTo(x, y);
+        context.lineTo(x + 15, y + 15);
+        context.lineTo(x + 5, y + 15);
+        context.lineTo(x, y + 22);
+        context.closePath();
+        context.fill();
+        context.stroke();
+        
+        context.restore();
+      });
+    }
+
     // Draw canvas info
     context.save();
     context.fillStyle = '#888888';
     context.font = '10px "Open Sans", Arial, sans-serif';
     context.setLineDash([]);
-    
+
     const dimText = `${Math.round(canvasWidth)}x${Math.round(canvasHeight)}`;
     const textWidthDim = context.measureText(dimText).width;
     context.fillText(dimText, canvasWidth - textWidthDim - 5, canvasHeight - 15);
-    
+
     const coordText = `x: ${mousePosition.x}, y: ${mousePosition.y}`;
     context.fillText(coordText, 5, canvasHeight - 15);
     context.restore();
@@ -796,32 +1008,32 @@ const Canvas = forwardRef(({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const context = canvas.getContext('2d');
     contextRef.current = context;
-    
+
     let resizeTimeout;
     const handleResize = () => {
       setIsResizingCanvas(true);
       clearTimeout(resizeTimeout);
-      
+
       resizeTimeout = setTimeout(() => {
         const container = canvas.parentElement;
         if (container && contextRef.current) {
           // Update canvas display size
           canvas.style.width = container.clientWidth + 'px';
           canvas.style.height = container.clientHeight + 'px';
-          
+
           // Setup high-resolution canvas
           setupHighResCanvas(canvas, contextRef.current);
         }
         setIsResizingCanvas(false);
       }, 100);
     };
-    
+
     handleResize(); // Initial setup
     window.addEventListener('resize', handleResize);
-    
+
     return () => {
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
@@ -837,7 +1049,8 @@ const Canvas = forwardRef(({
     elements, isResizingCanvas, editingElementId, selectedElements,
     currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting,
     strokeColor, fillColor, lineWidth, fontSize, stickyNoteColor,
-    currentPath, isDrawing, selectedTool, draggedElementsPositions, imageCache
+    currentPath, isDrawing, selectedTool, draggedElementsPositions, imageCache,
+    remoteCursors
   ]);
 
   // Check if point is on an image handle (for resize/rotate)
@@ -886,23 +1099,27 @@ const Canvas = forwardRef(({
       const ctx = contextRef.current;
 
       if (el.type === 'sticky') {
-        if (x >= displayElement.x && x <= displayElement.x + STICKY_NOTE_WIDTH && 
-            y >= displayElement.y && y <= displayElement.y + STICKY_NOTE_HEIGHT) {
+        if (x >= displayElement.x && x <= displayElement.x + STICKY_NOTE_WIDTH &&
+          y >= displayElement.y && y <= displayElement.y + STICKY_NOTE_HEIGHT) {
           return el;
         }
       } else if (el.type === 'text' && ctx) {
-        const originalFont = ctx.font;
-        ctx.font = `${el.fontSize}px "Open Sans", Arial, sans-serif`;
-        const textWidth = ctx.measureText(el.text || '').width;
-        ctx.font = originalFont;
-        
-        if (x >= displayElement.x && x <= displayElement.x + textWidth && 
-            y >= displayElement.y - el.fontSize && y <= displayElement.y) {
+        const bounds = getTextBounds(el, displayElement, ctx);
+        if (
+          x >= bounds.left &&
+          x <= bounds.right &&
+          y >= bounds.top &&
+          y <= bounds.bottom
+        ) {
+          return el;
+        }
+      } else if (el.type === 'stroke') {
+        if (isPointNearStroke(x, y, el, displayElement)) {
           return el;
         }
       } else if (el.type === 'rectangle') {
-        if (x >= displayElement.x && x <= displayElement.x + el.width && 
-            y >= displayElement.y && y <= displayElement.y + el.height) {
+        if (x >= displayElement.x && x <= displayElement.x + el.width &&
+          y >= displayElement.y && y <= displayElement.y + el.height) {
           return el;
         }
       } else if (el.type === 'circle') {
@@ -957,14 +1174,14 @@ const Canvas = forwardRef(({
         const rotatedY = Math.sin(angle) * (x - centerX) + Math.cos(angle) * (y - centerY) + centerY;
 
         if (rotatedX >= imgX && rotatedX <= imgX + width &&
-            rotatedY >= imgY && rotatedY <= imgY + height) {
+          rotatedY >= imgY && rotatedY <= imgY + height) {
           return el;
         }
       }
     }
     return null;
   };
-  
+
   const getElementsInRect = (rect) => {
     const { startX, startY, endX, endY } = rect;
     const selLeft = Math.min(startX, endX);
@@ -972,11 +1189,11 @@ const Canvas = forwardRef(({
     const selTop = Math.min(startY, endY);
     const selBottom = Math.max(startY, endY);
     const ctx = contextRef.current;
-    
+
     return elements.filter(el => {
       const displayElement = getElementDisplayPosition(el);
       let elLeft, elRight, elTop, elBottom;
-      
+
       if (el.type === 'sticky') {
         elLeft = displayElement.x;
         elRight = displayElement.x + STICKY_NOTE_WIDTH;
@@ -1000,20 +1217,19 @@ const Canvas = forwardRef(({
         elTop = Math.min(displayElement.y, endY);
         elBottom = Math.max(displayElement.y, endY);
       } else if (el.type === 'text' && ctx) {
-        const originalFont = ctx.font;
-        ctx.font = `${el.fontSize}px "Open Sans", Arial, sans-serif`;
-        const textWidth = ctx.measureText(el.text || '').width;
-        ctx.font = originalFont;
-        elLeft = displayElement.x;
-        elRight = displayElement.x + textWidth;
-        elTop = displayElement.y - el.fontSize;
-        elBottom = displayElement.y;
+        const bounds = getTextBounds(el, displayElement, ctx);
+        elLeft = bounds.left;
+        elRight = bounds.right;
+        elTop = bounds.top;
+        elBottom = bounds.bottom;
       } else if (el.type === 'line' || el.type === 'arrow' || el.type === 'stroke') {
-        if (el.path && el.path.length > 0) {
-          elLeft = Math.min(...el.path.map(p => p.x));
-          elRight = Math.max(...el.path.map(p => p.x));
-          elTop = Math.min(...el.path.map(p => p.y));
-          elBottom = Math.max(...el.path.map(p => p.y));
+        if (el.type === 'stroke') {
+          const strokeBounds = getStrokeBounds(el, displayElement);
+          if (!strokeBounds) return false;
+          elLeft = strokeBounds.left;
+          elRight = strokeBounds.right;
+          elTop = strokeBounds.top;
+          elBottom = strokeBounds.bottom;
         } else if (el.type === 'line' || el.type === 'arrow') {
           const endX = displayElement.endX !== undefined ? displayElement.endX : el.endX;
           const endY = displayElement.endY !== undefined ? displayElement.endY : el.endY;
@@ -1032,23 +1248,28 @@ const Canvas = forwardRef(({
       } else {
         return false;
       }
-      
-      return elLeft >= selLeft && elRight <= selRight && 
-             elTop >= selTop && elBottom <= selBottom;
+
+      return elLeft >= selLeft && elRight <= selRight &&
+        elTop >= selTop && elBottom <= selBottom;
     });
   };
 
   const handleMouseDown = (event) => {
     event.preventDefault();
-    if (editingElementId) return;
-    
     const { x, y } = getMousePosition(event);
+    if (editingElementId) {
+      if (selectedTool === 'text' && onTextCanvasClickWhileEditing) {
+        onTextCanvasClickWhileEditing(x, y);
+      }
+      return;
+    }
 
     if (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter') {
       setSelectedElements([]);
       setIsDrawing(true);
-      setCurrentPath([{ x, y }]);
-      
+      currentPathRef.current = [{ x, y }];
+      scheduleVisualUpdate({ currentPath: [{ x, y }] });
+
     } else if (selectedTool === 'select') {
       // First check if clicking on image handles
       for (const el of elements) {
@@ -1065,6 +1286,8 @@ const Canvas = forwardRef(({
                 startAngle,
                 startRotation: el.rotation || 0
               });
+              draggedElementsPositionsRef.current = {};
+              scheduleVisualUpdate({ draggedElementsPositions: {} });
               return;
             } else {
               // Start resizing
@@ -1079,6 +1302,8 @@ const Canvas = forwardRef(({
                 startElY: el.y,
                 aspectRatio: el.width / el.height
               });
+              draggedElementsPositionsRef.current = {};
+              scheduleVisualUpdate({ draggedElementsPositions: {} });
               return;
             }
           }
@@ -1106,6 +1331,7 @@ const Canvas = forwardRef(({
           .filter(el => currentSelectedIds.includes(el.id))
           .map(el => ({
             id: el.id,
+            type: el.type,
             x: el.x,
             y: el.y,
             endX: el.endX,
@@ -1125,27 +1351,33 @@ const Canvas = forwardRef(({
         setShapeStartPoint({ x, y });
         if (!event.shiftKey) setSelectedElements([]);
       }
-      
+
     } else if (['rectangle', 'circle', 'triangle', 'line', 'arrow'].includes(selectedTool)) {
       setSelectedElements([]);
       setShapeStartPoint({ x, y });
       setCurrentShape(selectedTool);
-      
+
     } else if (selectedTool === 'text') {
       setSelectedElements([]);
       const newTextId = Date.now();
+      const starterText = textListType === 'bullet'
+        ? '• '
+        : textListType === 'numbered'
+          ? '1. '
+          : '';
       const newText = {
         type: 'text',
         x,
         y,
-        text: '',
+        text: starterText,
         color: strokeColor,
         fontSize,
-        id: newTextId
+        id: newTextId,
+        listType: textListType || 'none'
       };
       onDrawingOrElementComplete(newText);
       setTimeout(() => activateTextEditing(newText), 0);
-      
+
     } else if (selectedTool === 'sticky') {
       setSelectedElements([]);
       const newStickyId = Date.now();
@@ -1166,7 +1398,7 @@ const Canvas = forwardRef(({
     if (clickedElementForEdit) {
       const now = Date.now();
       const lastClickInfo = canvasRef.current._lastClickDetails || {};
-      
+
       if (clickedElementForEdit.id === lastClickInfo.id && (now - lastClickInfo.time < 300)) {
         if (clickedElementForEdit.type === 'sticky') {
           activateStickyNoteEditing(clickedElementForEdit);
@@ -1198,10 +1430,15 @@ const Canvas = forwardRef(({
         const deltaAngle = currentAngle - rotatingImage.startAngle;
         const newRotation = (rotatingImage.startRotation + deltaAngle + 360) % 360;
 
-        setDraggedElementsPositions(prev => ({
-          ...prev,
-          [rotatingImage.id]: { ...prev[rotatingImage.id], rotation: newRotation }
-        }));
+        const nextDraggedPositions = {
+          ...draggedElementsPositionsRef.current,
+          [rotatingImage.id]: {
+            ...draggedElementsPositionsRef.current[rotatingImage.id],
+            rotation: newRotation
+          }
+        };
+        draggedElementsPositionsRef.current = nextDraggedPositions;
+        scheduleVisualUpdate({ draggedElementsPositions: nextDraggedPositions });
       }
       return;
     }
@@ -1210,9 +1447,8 @@ const Canvas = forwardRef(({
     if (resizingImage) {
       const element = elements.find(el => el.id === resizingImage.id);
       if (element) {
-        const { handle, startX, startY, startWidth, startHeight, startElX, startElY, aspectRatio } = resizingImage;
+        const { handle, startX, startWidth, startHeight, startElX, startElY, aspectRatio } = resizingImage;
         let deltaX = x - startX;
-        let deltaY = y - startY;
 
         let newWidth = startWidth;
         let newHeight = startHeight;
@@ -1245,33 +1481,43 @@ const Canvas = forwardRef(({
             break;
         }
 
-        setDraggedElementsPositions(prev => ({
-          ...prev,
+        const nextDraggedPositions = {
+          ...draggedElementsPositionsRef.current,
           [resizingImage.id]: { x: newX, y: newY, width: newWidth, height: newHeight }
-        }));
+        };
+        draggedElementsPositionsRef.current = nextDraggedPositions;
+        scheduleVisualUpdate({ draggedElementsPositions: nextDraggedPositions });
       }
       return;
     }
 
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter')) {
-      setCurrentPath(prev => [...prev, { x, y }]);
+      currentPathRef.current.push({ x, y });
+      scheduleVisualUpdate({ currentPathDirty: true });
     } else if (isSelecting && shapeStartPoint) {
-      setSelectionRect({
-        startX: shapeStartPoint.x,
-        startY: shapeStartPoint.y,
-        endX: x,
-        endY: y
+      scheduleVisualUpdate({
+        selectionRect: {
+          startX: shapeStartPoint.x,
+          startY: shapeStartPoint.y,
+          endX: x,
+          endY: y
+        }
       });
     } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
       // Real-time dragging: Update positions as mouse moves
       const deltaX = x - draggingElement.initialMouseX;
       const deltaY = y - draggingElement.initialMouseY;
-      
+
       const newDraggedPositions = {};
       draggingElement.initialPositions.forEach(initialPos => {
         const element = elements.find(el => el.id === initialPos.id);
         if (element) {
-          if (element.type === 'line' || element.type === 'arrow' || element.type === 'triangle') {
+          if (element.type === 'stroke') {
+            newDraggedPositions[initialPos.id] = {
+              deltaX,
+              deltaY
+            };
+          } else if (element.type === 'line' || element.type === 'arrow' || element.type === 'triangle') {
             newDraggedPositions[initialPos.id] = {
               x: initialPos.x + deltaX,
               y: initialPos.y + deltaY,
@@ -1286,8 +1532,9 @@ const Canvas = forwardRef(({
           }
         }
       });
-      
-      setDraggedElementsPositions(newDraggedPositions);
+
+      draggedElementsPositionsRef.current = newDraggedPositions;
+      scheduleVisualUpdate({ draggedElementsPositions: newDraggedPositions });
     }
   };
 
@@ -1297,7 +1544,7 @@ const Canvas = forwardRef(({
 
     // Commit image rotation
     if (rotatingImage) {
-      const draggedPos = draggedElementsPositions[rotatingImage.id];
+      const draggedPos = draggedElementsPositionsRef.current[rotatingImage.id];
       if (draggedPos && draggedPos.rotation !== undefined) {
         updateElementsAndHistory(prevElements =>
           prevElements.map(el =>
@@ -1308,13 +1555,14 @@ const Canvas = forwardRef(({
         );
       }
       setRotatingImage(null);
-      setDraggedElementsPositions({});
+      draggedElementsPositionsRef.current = {};
+      scheduleVisualUpdate({ draggedElementsPositions: {} });
       return;
     }
 
     // Commit image resize
     if (resizingImage) {
-      const draggedPos = draggedElementsPositions[resizingImage.id];
+      const draggedPos = draggedElementsPositionsRef.current[resizingImage.id];
       if (draggedPos) {
         updateElementsAndHistory(prevElements =>
           prevElements.map(el =>
@@ -1325,34 +1573,46 @@ const Canvas = forwardRef(({
         );
       }
       setResizingImage(null);
-      setDraggedElementsPositions({});
+      draggedElementsPositionsRef.current = {};
+      scheduleVisualUpdate({ draggedElementsPositions: {} });
       return;
     }
 
     if (isDrawing && (selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'highlighter')) {
       setIsDrawing(false);
-      if (currentPath.length > 1) {
+      if (currentPathRef.current.length > 1) {
         onDrawingOrElementComplete({
           type: 'stroke',
           color: selectedTool === 'highlighter' ? strokeColor : (selectedTool === 'pen' ? strokeColor : 'rgba(0,0,0,0)'),
           lineWidth: selectedTool === 'eraser' ? lineWidth * 1.5 : (selectedTool === 'highlighter' ? lineWidth * 3 : lineWidth),
-          path: currentPath,
+          path: currentPathRef.current,
           isEraser: selectedTool === 'eraser',
           isHighlighter: selectedTool === 'highlighter',
           id: Date.now()
         });
       }
-      setCurrentPath([]);
-      
+      currentPathRef.current = [];
+      scheduleVisualUpdate({ currentPath: [] });
+
     } else if (draggingElement && draggingElement.ids && draggingElement.initialPositions) {
       // Commit the dragged positions to the actual elements
       const deltaX = x - draggingElement.initialMouseX;
       const deltaY = y - draggingElement.initialMouseY;
-      
+
       updateElementsAndHistory(prevElements =>
         prevElements.map(el => {
           const initialPos = draggingElement.initialPositions.find(p => p.id === el.id);
           if (initialPos) {
+            if (el.type === 'stroke' && Array.isArray(el.path)) {
+              return {
+                ...el,
+                path: el.path.map((point) => ({
+                  x: point.x + deltaX,
+                  y: point.y + deltaY
+                }))
+              };
+            }
+
             if (el.type === 'line' || el.type === 'arrow' || el.type === 'triangle') {
               return {
                 ...el,
@@ -1371,14 +1631,15 @@ const Canvas = forwardRef(({
           return el;
         })
       );
-      
+
       // Clear dragging states
       setDraggingElement(null);
-      setDraggedElementsPositions({});
-      
+      draggedElementsPositionsRef.current = {};
+      scheduleVisualUpdate({ draggedElementsPositions: {} });
+
     } else if (currentShape && shapeStartPoint) {
       const distance = Math.sqrt(Math.pow(x - shapeStartPoint.x, 2) + Math.pow(y - shapeStartPoint.y, 2));
-      
+
       if (distance > 5) { // Minimum size threshold
         let newElement = {
           type: currentShape,
@@ -1387,7 +1648,7 @@ const Canvas = forwardRef(({
           lineWidth,
           id: Date.now()
         };
-        
+
         if (currentShape === 'rectangle') {
           newElement = {
             ...newElement,
@@ -1412,16 +1673,17 @@ const Canvas = forwardRef(({
             endY: y
           };
         }
-        
+
         onDrawingOrElementComplete(newElement);
       }
-      
+
       setShapeStartPoint(null);
       setCurrentShape(null);
-      
+      scheduleVisualUpdate({ selectionRect: null });
+
     } else if (isSelecting && selectionRect) {
       const elementsInSelection = getElementsInRect(selectionRect);
-      
+
       if (elementsInSelection.length > 0) {
         const newSelectedIds = elementsInSelection.map(el => el.id);
         if (event.shiftKey || (event.touches && event.touches.length > 1)) {
@@ -1430,7 +1692,7 @@ const Canvas = forwardRef(({
           setSelectedElements(newSelectedIds);
         }
       }
-      
+
       setIsSelecting(false);
       setSelectionRect(null);
       setShapeStartPoint(null);
@@ -1459,21 +1721,23 @@ const Canvas = forwardRef(({
     } else {
       canvasCursor = 'default';
     }
-  } else if (['rectangle', 'circle', 'triangle', 'line', 'arrow', 'text'].includes(selectedTool)) {
+  } else if (selectedTool === 'line') {
+    canvasCursor = PRECISE_LINE_CURSOR;
+  } else if (['rectangle', 'circle', 'triangle', 'arrow', 'text'].includes(selectedTool)) {
     canvasCursor = 'crosshair';
   }
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (document.activeElement && 
-          (document.activeElement.tagName === 'TEXTAREA' || 
-           document.activeElement.tagName === 'INPUT')) {
+      if (document.activeElement &&
+        (document.activeElement.tagName === 'TEXTAREA' ||
+          document.activeElement.tagName === 'INPUT')) {
         return;
       }
-      
-      if ((event.key === 'Delete' || event.key === 'Backspace') && 
-          selectedElements.length > 0 && !editingElementId) {
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') &&
+        selectedElements.length > 0 && !editingElementId) {
         event.preventDefault();
         updateElementsAndHistory(prevElements =>
           prevElements.filter(el => !selectedElements.includes(el.id))
@@ -1481,7 +1745,7 @@ const Canvas = forwardRef(({
         setSelectedElements([]);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedElements, editingElementId, updateElementsAndHistory]);
@@ -1498,9 +1762,9 @@ const Canvas = forwardRef(({
         onMouseLeave={(event) => {
           if (isDrawing || draggingElement || isSelecting || currentShape) {
             handleMouseUp({
-              preventDefault: () => {},
-              clientX: mousePosition.x + (canvasRef.current?.getBoundingClientRect().left || 0),
-              clientY: mousePosition.y + (canvasRef.current?.getBoundingClientRect().top || 0),
+              preventDefault: () => { },
+              clientX: mousePositionRef.current.x + (canvasRef.current?.getBoundingClientRect().left || 0),
+              clientY: mousePositionRef.current.y + (canvasRef.current?.getBoundingClientRect().top || 0),
               touches: event.touches
             });
           }

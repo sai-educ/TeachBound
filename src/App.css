@@ -10,49 +10,52 @@
 }
 
 .app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   padding: 12px 20px;
   background-color: #ffffff;
   border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0;
-  text-align: left;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-size: 1rem;
+  font-family: 'Open Sans', Arial, sans-serif;
 }
 
-.app-title-container {
+.app-heading {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
 }
 
 .app-title {
   margin: 0;
-  font-size: 1.6em;
+  font-size: 1.25rem;
   color: #1f2937;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
-  font-family: 'Open Sans', Arial, sans-serif;
-}
-
-.app-subtitle {
-  font-size: 1em;
-  color: #6b7280;
-  font-weight: 400;
-  font-family: 'Open Sans', Arial, sans-serif;
 }
 
 .app-slogan {
   margin: 0;
-  font-size: 0.85em;
+  font-size: 1rem;
   color: #6b7280;
-  line-height: 1.4;
-  font-family: 'Open Sans', Arial, sans-serif;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.app-subtitle-inline {
+  color: #374151;
 }
 
 .app-slogan a {
   color: #3b82f6;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 400;
   transition: color 0.2s ease-in-out, text-decoration 0.2s ease-in-out;
 }
 
@@ -63,6 +66,34 @@
 
 .app-slogan a:active {
   color: #1d4ed8;
+}
+
+.room-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  margin-top: 2px;
+  padding: 4px 12px;
+  background-color: #f3f4f6;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.connection-status {
+  font-size: 1.2em;
+  color: #9ca3af;
+}
+
+.connection-status.connected {
+  color: #10b981;
+}
+
+.connection-status.disconnected {
+  color: #ef4444;
 }
 
 .main-content-wrapper {
@@ -120,23 +151,14 @@
   .app-header {
     padding: 10px 15px;
   }
-  
-  .app-title-container {
-    flex-direction: column;
-    gap: 2px;
-    align-items: flex-start;
-  }
-  
+
   .app-title {
-    font-size: 1.4em;
+    font-size: 1.2rem;
   }
-  
-  .app-subtitle {
-    font-size: 0.9em;
-  }
-  
-  .app-slogan {
-    font-size: 0.8em;
+
+  .app-slogan,
+  .room-indicator {
+    font-size: 0.95rem;
   }
 }
 
@@ -144,17 +166,14 @@
   .app-header {
     padding: 8px 12px;
   }
-  
+
   .app-title {
-    font-size: 1.3em;
+    font-size: 1.15rem;
   }
-  
-  .app-subtitle {
-    font-size: 0.85em;
-  }
-  
-  .app-slogan {
-    font-size: 0.75em;
+
+  .app-slogan,
+  .room-indicator {
+    font-size: 0.9rem;
   }
 }
 
@@ -180,14 +199,17 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   20% {
     opacity: 1;
     transform: translateY(0);
   }
+
   80% {
     opacity: 1;
     transform: translateY(0);
   }
+
   100% {
     opacity: 0;
     transform: translateY(-10px);

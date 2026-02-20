@@ -1,12 +1,14 @@
 // src/App.js
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import './App.css';
 import Toolbar from './Toolbar';
 import Canvas from './Canvas';
+import { useCollaboration } from './hooks/useCollaboration';
 
 // --- App Name & Slogan ---
 const APP_NAME = "Teach Bound";
-const APP_SUBTITLE = "Digital White Board";
+const APP_SUBTITLE = "Digital Whiteboard for Teaching and Learning.";
+const PERSISTED_HISTORY_LIMIT = 30;
 
 function App() {
   const [selectedTool, setSelectedTool] = useState('pen');
@@ -14,6 +16,7 @@ function App() {
   const [fillColor, setFillColor] = useState('transparent');
   const [lineWidth, setLineWidth] = useState(5);
   const [fontSize, setFontSize] = useState(16);
+  const [textListType, setTextListType] = useState('none');
   const [stickyNoteColor, setStickyNoteColor] = useState('#FFFACD'); // Default yellow
   const [toolbarDisplayMode, setToolbarDisplayMode] = useState('icons-text'); // Changed from 'icons' to 'icons-text'
 
@@ -24,9 +27,12 @@ function App() {
       if (saved) {
         const data = JSON.parse(saved);
         if (data.history && Array.isArray(data.history)) {
+          const safeHistory = data.history.length > 0 ? data.history : [[]];
+          const requestedStep = Number.isInteger(data.historyStep) ? data.historyStep : 0;
+          const safeStep = Math.max(0, Math.min(requestedStep, safeHistory.length - 1));
           return {
-            history: data.history,
-            historyStep: data.historyStep || 0
+            history: safeHistory,
+            historyStep: safeStep
           };
         }
       }
@@ -39,112 +45,363 @@ function App() {
   const initialState = loadFromLocalStorage();
   const [history, setHistory] = useState(initialState.history);
   const [historyStep, setHistoryStep] = useState(initialState.historyStep);
-  const [lastSaveTime, setLastSaveTime] = useState(Date.now());
   const [showSaveIndicator, setShowSaveIndicator] = useState(false);
-  const elements = history[historyStep] || [];
+  const elements = useMemo(() => history[historyStep] || [], [history, historyStep]);
+  const historyStepRef = useRef(initialState.historyStep);
+  const elementsRef = useRef(elements);
 
   const canvasRef = useRef(null);
 
   const [editingElement, setEditingElement] = useState(null);
   const [textAreaPosition, setTextAreaPosition] = useState({ x: 0, y: 0 });
   const textAreaRef = useRef(null);
-  
+  const suppressNextBlurRef = useRef(false);
+
   // Clipboard state for copy/paste
   const [clipboard, setClipboard] = useState([]);
 
   // Image drag state
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
+  useEffect(() => {
+    historyStepRef.current = historyStep;
+  }, [historyStep]);
+
+  useEffect(() => {
+    elementsRef.current = elements;
+  }, [elements]);
+
+  const normalizeLineForList = useCallback((line) => {
+    return line.replace(/^\s*(?:[-*•]\s+|\d+\.\s+)/, '');
+  }, []);
+
+  const formatTextForListType = useCallback((text, listType) => {
+    const lines = (text || '').split('\n');
+
+    if (listType === 'bullet') {
+      return lines.map(line => `• ${normalizeLineForList(line)}`).join('\n');
+    }
+
+    if (listType === 'numbered') {
+      return lines.map((line, index) => `${index + 1}. ${normalizeLineForList(line)}`).join('\n');
+    }
+
+    return lines.map(line => normalizeLineForList(line)).join('\n');
+  }, [normalizeLineForList]);
+
+  const hasMeaningfulText = useCallback((text) => {
+    return (text || '').split('\n').some(line => normalizeLineForList(line).trim().length > 0);
+  }, [normalizeLineForList]);
+
   const updateElementsAndHistory = useCallback((newElementsOrUpdater) => {
+    const baseStep = historyStepRef.current;
+    const nextStep = baseStep + 1;
+
     setHistory((prevHistory) => {
-      const currentElementsState = prevHistory[historyStep] || [];
+      const safeStep = prevHistory.length > 0
+        ? Math.max(0, Math.min(baseStep, prevHistory.length - 1))
+        : 0;
+      const currentElementsState = prevHistory[safeStep] || [];
+
       const updatedElements = typeof newElementsOrUpdater === 'function'
         ? newElementsOrUpdater(currentElementsState)
         : newElementsOrUpdater;
 
-      const newHistorySlice = prevHistory.slice(0, historyStep + 1);
+      const newHistorySlice = prevHistory.slice(0, safeStep + 1);
       return [...newHistorySlice, updatedElements];
     });
-    setHistoryStep((prevStep) => prevStep + 1);
-  }, [historyStep]);
+
+    historyStepRef.current = nextStep;
+    setHistoryStep(nextStep);
+  }, []);
+
+  // Collaboration Hook
+  const {
+    isConnected,
+    collabRoomId,
+    setCollabRoomId,
+    emitDraw,
+    emitUpdate,
+    emitDelete,
+    emitClear,
+    emitCursorMove,
+    remoteCursors
+  } = useCollaboration(updateElementsAndHistory, elements);
+
 
   const handleDrawingOrElementComplete = useCallback((newElement) => {
     updateElementsAndHistory((prevElements) => {
-        if (newElement.type === 'sticky' && !newElement.text) {
-            setEditingElement({ id: newElement.id, text: newElement.text || "Note..." });
-        }
-        if (newElement.type === 'text' && !newElement.text) {
-            setEditingElement({ id: newElement.id, text: newElement.text || "", isText: true });
-        }
-        return [...prevElements, newElement];
+      if (newElement.type === 'sticky' && !newElement.text) {
+        setEditingElement({ id: newElement.id, text: newElement.text || "Note..." });
+      }
+      if (newElement.type === 'text' && !newElement.text) {
+        setEditingElement({
+          id: newElement.id,
+          text: newElement.text || "",
+          isText: true,
+          listType: newElement.listType || textListType
+        });
+      }
+      return [...prevElements, newElement];
     });
-  }, [updateElementsAndHistory]);
+    // Emit to socket
+    emitDraw(newElement);
+  }, [updateElementsAndHistory, emitDraw, textListType]);
 
   const activateStickyNoteEditing = useCallback((element) => {
     if (element && element.type === 'sticky') {
-        setEditingElement({ id: element.id, text: element.text });
-        const canvasGlobalRect = canvasRef.current?.getCanvasGlobalRect();
-        if (canvasGlobalRect) {
-            setTextAreaPosition({
-                x: canvasGlobalRect.left + element.x,
-                y: canvasGlobalRect.top + element.y,
-            });
-        }
-        setTimeout(() => {
-            textAreaRef.current?.focus();
-            textAreaRef.current?.select();
-        }, 0);
+      setEditingElement({ id: element.id, text: element.text });
+      const canvasGlobalRect = canvasRef.current?.getCanvasGlobalRect();
+      if (canvasGlobalRect) {
+        setTextAreaPosition({
+          x: canvasGlobalRect.left + element.x,
+          y: canvasGlobalRect.top + element.y,
+        });
+      }
+      setTimeout(() => {
+        textAreaRef.current?.focus();
+        textAreaRef.current?.select();
+      }, 0);
     }
+  }, []);
+
+  const positionTextCaret = useCallback((element) => {
+    const textarea = textAreaRef.current;
+    if (!textarea) return;
+
+    const textValue = element?.text || '';
+    const listType = element?.listType || 'none';
+    const isFreshBulletStarter = listType === 'bullet' && textValue === '• ';
+    const isFreshNumberStarter = listType === 'numbered' && textValue === '1. ';
+
+    if (isFreshBulletStarter || isFreshNumberStarter) {
+      const caretPosition = textValue.length;
+      textarea.setSelectionRange(caretPosition, caretPosition);
+      return;
+    }
+
+    textarea.select();
   }, []);
 
   const activateTextEditing = useCallback((element) => {
     if (element && element.type === 'text') {
-        setEditingElement({ id: element.id, text: element.text, isText: true });
-        const canvasGlobalRect = canvasRef.current?.getCanvasGlobalRect();
-        if (canvasGlobalRect) {
-            setTextAreaPosition({
-                x: canvasGlobalRect.left + element.x,
-                y: canvasGlobalRect.top + element.y,
-            });
-        }
-        setTimeout(() => {
-            textAreaRef.current?.focus();
-            textAreaRef.current?.select();
-        }, 0);
+      const currentListType = element.listType || 'none';
+      setEditingElement({ id: element.id, text: element.text, isText: true, listType: currentListType });
+      setTextListType(currentListType);
+      const canvasGlobalRect = canvasRef.current?.getCanvasGlobalRect();
+      if (canvasGlobalRect) {
+        setTextAreaPosition({
+          x: canvasGlobalRect.left + element.x,
+          y: canvasGlobalRect.top + element.y,
+        });
+      }
+      setTimeout(() => {
+        const textarea = textAreaRef.current;
+        if (!textarea) return;
+        textarea.focus();
+        positionTextCaret(element);
+      }, 0);
     }
-  }, []);
+  }, [positionTextCaret]);
 
-  const handleTextAreaBlur = useCallback(() => {
+  const createAndActivateTextElement = useCallback((x, y) => {
+    const starterText = textListType === 'bullet'
+      ? '• '
+      : textListType === 'numbered'
+        ? '1. '
+        : '';
+
+    const newText = {
+      type: 'text',
+      x,
+      y,
+      text: starterText,
+      color: strokeColor,
+      fontSize,
+      id: Date.now() + Math.random(),
+      listType: textListType
+    };
+
+    updateElementsAndHistory((prevElements) => [...prevElements, newText]);
+    emitDraw(newText);
+    activateTextEditing(newText);
+  }, [activateTextEditing, emitDraw, fontSize, strokeColor, textListType, updateElementsAndHistory]);
+
+  const commitEditingElement = useCallback((options = {}) => {
+    const { startNewTextAt = null } = options;
+
     if (editingElement) {
-      updateElementsAndHistory((prevElements) =>
-        prevElements.map((el) =>
-          el.id === editingElement.id ? { ...el, text: editingElement.text } : el
-        )
-      );
+      const liveEditorText = textAreaRef.current?.value ?? editingElement.text ?? '';
+      const existingElement = elementsRef.current.find((el) => el.id === editingElement.id);
+
+      if (editingElement.isText) {
+        const editingListType = editingElement.listType || textListType;
+        const formattedText = formatTextForListType(liveEditorText, editingListType);
+
+        if (!hasMeaningfulText(formattedText)) {
+          updateElementsAndHistory((prevElements) =>
+            prevElements.filter((el) => el.id !== editingElement.id)
+          );
+          emitDelete([editingElement.id]);
+        } else {
+          updateElementsAndHistory((prevElements) =>
+            prevElements.map((el) => {
+              if (el.id === editingElement.id) {
+                return { ...el, text: formattedText, listType: editingListType };
+              }
+              return el;
+            })
+          );
+
+          if (existingElement) {
+            emitUpdate({ ...existingElement, text: formattedText, listType: editingListType });
+          }
+        }
+      } else {
+        updateElementsAndHistory((prevElements) =>
+          prevElements.map((el) => {
+            if (el.id === editingElement.id) {
+              return { ...el, text: liveEditorText };
+            }
+            return el;
+          })
+        );
+
+        if (existingElement) {
+          emitUpdate({ ...existingElement, text: liveEditorText });
+        }
+      }
+
       setEditingElement(null);
     }
-  }, [editingElement, updateElementsAndHistory]);
+
+    if (startNewTextAt && selectedTool === 'text') {
+      createAndActivateTextElement(startNewTextAt.x, startNewTextAt.y);
+    }
+  }, [
+    createAndActivateTextElement,
+    editingElement,
+    emitDelete,
+    emitUpdate,
+    formatTextForListType,
+    hasMeaningfulText,
+    selectedTool,
+    textListType,
+    updateElementsAndHistory
+  ]);
+
+  const handleTextAreaBlur = useCallback(() => {
+    if (suppressNextBlurRef.current) {
+      suppressNextBlurRef.current = false;
+      return;
+    }
+    commitEditingElement();
+  }, [commitEditingElement]);
 
   const handleTextAreaChange = (event) => {
-    if (editingElement) {
-      setEditingElement((prev) => ({ ...prev, text: event.target.value }));
-    }
+    const { value } = event.target;
+    setEditingElement((prev) => (prev ? { ...prev, text: value } : prev));
   };
-  
+
+  const handleTextListTypeChange = useCallback((nextListType) => {
+    setTextListType(nextListType);
+    setEditingElement((prev) => {
+      if (!prev || !prev.isText) return prev;
+      return {
+        ...prev,
+        listType: nextListType,
+        text: formatTextForListType(prev.text || '', nextListType)
+      };
+    });
+
+    if (editingElement?.isText) {
+      requestAnimationFrame(() => {
+        const textarea = textAreaRef.current;
+        if (!textarea) return;
+
+        const value = textarea.value || '';
+        const isFreshBulletStarter = nextListType === 'bullet' && value === '• ';
+        const isFreshNumberStarter = nextListType === 'numbered' && value === '1. ';
+        if (isFreshBulletStarter || isFreshNumberStarter) {
+          const caretPosition = value.length;
+          textarea.setSelectionRange(caretPosition, caretPosition);
+        }
+      });
+    }
+  }, [editingElement, formatTextForListType]);
+
+  const getNextListNumber = useCallback((text, caretIndex) => {
+    const textBeforeCaret = text.slice(0, caretIndex);
+    const lines = textBeforeCaret.split('\n');
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      const match = lines[i].match(/^\s*(\d+)\.\s/);
+      if (match) {
+        return Number(match[1]) + 1;
+      }
+    }
+    return 1;
+  }, []);
+
   const handleTextAreaKeyDown = (event) => {
+    if (event.key === 'Enter' && event.shiftKey && editingElement?.isText && editingElement.listType && editingElement.listType !== 'none') {
+      event.preventDefault();
+      const textarea = event.target;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const prefix = editingElement.listType === 'bullet'
+        ? '• '
+        : `${getNextListNumber(editingElement.text || '', start)}. `;
+      const nextText = `${editingElement.text.slice(0, start)}\n${prefix}${editingElement.text.slice(end)}`;
+      const nextCaret = start + 1 + prefix.length;
+
+      setEditingElement((prev) => ({ ...prev, text: nextText }));
+      requestAnimationFrame(() => {
+        textarea.selectionStart = nextCaret;
+        textarea.selectionEnd = nextCaret;
+      });
+      return;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        handleTextAreaBlur();
+      event.preventDefault();
+      commitEditingElement();
     }
     if (event.key === 'Escape') {
-        event.preventDefault();
-        setEditingElement(null);
+      event.preventDefault();
+      setEditingElement(null);
     }
   };
 
-  const handleUndo = () => historyStep > 0 && setHistoryStep(historyStep - 1);
-  const handleRedo = () => historyStep < history.length - 1 && setHistoryStep(historyStep + 1);
-  
+  const handleTextCanvasClickWhileEditing = useCallback((x, y) => {
+    suppressNextBlurRef.current = true;
+    commitEditingElement({ startNewTextAt: { x, y } });
+  }, [commitEditingElement]);
+
+  const handleToolSelection = useCallback((nextTool) => {
+    if (editingElement && nextTool !== selectedTool) {
+      suppressNextBlurRef.current = true;
+      commitEditingElement();
+      textAreaRef.current?.blur();
+    }
+    setSelectedTool(nextTool);
+  }, [commitEditingElement, editingElement, selectedTool]);
+
+  const handleUndo = useCallback(() => {
+    if (historyStep > 0) {
+      const nextStep = historyStep - 1;
+      historyStepRef.current = nextStep;
+      setHistoryStep(nextStep);
+    }
+  }, [historyStep]);
+
+  const handleRedo = useCallback(() => {
+    if (historyStep < history.length - 1) {
+      const nextStep = historyStep + 1;
+      historyStepRef.current = nextStep;
+      setHistoryStep(nextStep);
+    }
+  }, [historyStep, history.length]);
+
   // Enhanced Clear function with sound alert
   const handleClearFrame = () => {
     // Play sound alert
@@ -153,49 +410,60 @@ function App() {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       oscillator.frequency.value = 800; // Frequency in Hz
       oscillator.type = 'sine';
-      
+
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
+
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
     } catch (error) {
       console.log('Audio not supported or blocked:', error);
     }
-    
+
     // Show confirmation dialog
     const confirmed = window.confirm("⚠️ CLEAR CANVAS WARNING ⚠️\n\nThis will permanently delete everything on the canvas and cannot be undone.\n\nAre you sure you want to continue?");
     if (confirmed) {
       setHistory([[]]);
       setHistoryStep(0);
+      emitClear();
     }
   };
-  
+
   const handleDownloadPNG = (scale = 1) => canvasRef.current?.downloadAsPNG(scale);
   const handleDownloadPDF = () => canvasRef.current?.downloadAsPDF();
 
   const handleDeleteSelected = useCallback(() => {
-    canvasRef.current?.deleteSelectedElements();
-  }, []);
+    const selected = canvasRef.current?.getSelectedElements() || [];
+    const selectedIds = selected.map(el => el.id);
+    if (selectedIds.length > 0) {
+      canvasRef.current?.deleteSelectedElements();
+      emitDelete(selectedIds);
+    }
+  }, [emitDelete]);
 
   // Auto-save to localStorage
-  const saveToLocalStorage = useCallback(() => {
+  const saveToLocalStorage = useCallback((showIndicator = false) => {
     try {
+      const safeHistoryStep = Math.max(0, Math.min(historyStep, history.length - 1));
+      const historyStartIndex = Math.max(0, safeHistoryStep - PERSISTED_HISTORY_LIMIT + 1);
+      const persistedHistory = history.slice(historyStartIndex, safeHistoryStep + 1);
+
       const dataToSave = {
-        history: history,
-        historyStep: historyStep,
+        history: persistedHistory,
+        historyStep: persistedHistory.length - 1,
         timestamp: Date.now()
       };
       localStorage.setItem('teachbound-canvas-data', JSON.stringify(dataToSave));
-      setLastSaveTime(Date.now());
-      setShowSaveIndicator(true);
-      setTimeout(() => setShowSaveIndicator(false), 2000);
+      if (showIndicator) {
+        setShowSaveIndicator(true);
+        setTimeout(() => setShowSaveIndicator(false), 2000);
+      }
     } catch (error) {
       console.error('Error saving to localStorage:', error);
       // If localStorage is full, try to clear old data
@@ -206,32 +474,31 @@ function App() {
     }
   }, [history, historyStep]);
 
-  // Auto-save effect - saves every 5 seconds if there are changes
+  // Save when history changes, deferred slightly to reduce interaction overhead.
   useEffect(() => {
-    const saveInterval = setInterval(() => {
-      if (Date.now() - lastSaveTime > 5000 && history.length > 0) {
-        saveToLocalStorage();
-      }
-    }, 5000);
-
-    return () => clearInterval(saveInterval);
-  }, [lastSaveTime, history, saveToLocalStorage]);
-
-  // Save immediately when history changes (debounced)
-  useEffect(() => {
+    let idleCallbackId;
     const saveTimer = setTimeout(() => {
-      if (history.length > 0 && history[0].length > 0) {
-        saveToLocalStorage();
+      if (history.length > 0) {
+        if ('requestIdleCallback' in window) {
+          idleCallbackId = window.requestIdleCallback(() => saveToLocalStorage(), { timeout: 1500 });
+        } else {
+          saveToLocalStorage();
+        }
       }
-    }, 1000);
+    }, 1200);
 
-    return () => clearTimeout(saveTimer);
+    return () => {
+      clearTimeout(saveTimer);
+      if (idleCallbackId !== undefined && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+    };
   }, [history, historyStep, saveToLocalStorage]);
 
   // Manual save function
-  const handleManualSave = () => {
-    saveToLocalStorage();
-  };
+  const handleManualSave = useCallback(() => {
+    saveToLocalStorage(true);
+  }, [saveToLocalStorage]);
 
   // Clear saved data
   const handleClearSaved = () => {
@@ -287,7 +554,8 @@ function App() {
       };
 
       updateElementsAndHistory(prev => [...prev, newImage]);
-      setSelectedTool('select'); // Switch to select tool after adding image
+      emitDraw(newImage); // Share image
+      handleToolSelection('select'); // Switch to select tool after adding image
     };
 
     img.onerror = () => {
@@ -298,7 +566,7 @@ function App() {
     // Set crossOrigin for potential CORS issues
     img.crossOrigin = 'anonymous';
     img.src = imageData;
-  }, [updateElementsAndHistory]);
+  }, [updateElementsAndHistory, emitDraw, handleToolSelection]);
 
   // Handle file drop - supports all common image formats
   const handleDrop = useCallback((event) => {
@@ -380,20 +648,22 @@ function App() {
         ...(el.endX !== undefined && { endX: el.endX + offset }),
         ...(el.endY !== undefined && { endY: el.endY + offset }),
         // Adjust path for strokes
-        ...(el.path && { 
-          path: el.path.map(point => ({ 
-            x: point.x + offset, 
-            y: point.y + offset 
-          })) 
+        ...(el.path && {
+          path: el.path.map(point => ({
+            x: point.x + offset,
+            y: point.y + offset
+          }))
         })
       }));
-      
+
       updateElementsAndHistory((prevElements) => [
         ...prevElements,
         ...pastedElements
       ]);
+      // Emit pasted elements
+      pastedElements.forEach(el => emitDraw(el));
     }
-  }, [clipboard, updateElementsAndHistory]);
+  }, [clipboard, updateElementsAndHistory, emitDraw]);
 
   // Duplicate selected elements
   const handleDuplicate = useCallback(() => {
@@ -416,43 +686,43 @@ function App() {
       if (!cmdOrCtrl && !event.shiftKey && !event.altKey) {
         switch (event.key.toLowerCase()) {
           case 'v':
-            setSelectedTool('select');
+            handleToolSelection('select');
             event.preventDefault();
             break;
           case 'p':
-            setSelectedTool('pen');
+            handleToolSelection('pen');
             event.preventDefault();
             break;
           case 'e':
-            setSelectedTool('eraser');
+            handleToolSelection('eraser');
             event.preventDefault();
             break;
           case 'n':
-            setSelectedTool('sticky');
+            handleToolSelection('sticky');
             event.preventDefault();
             break;
           case 't':
-            setSelectedTool('text');
+            handleToolSelection('text');
             event.preventDefault();
             break;
           case 'h':
-            setSelectedTool('highlighter');
+            handleToolSelection('highlighter');
             event.preventDefault();
             break;
           case 'r':
-            setSelectedTool('rectangle');
+            handleToolSelection('rectangle');
             event.preventDefault();
             break;
           case 'c':
-            setSelectedTool('circle');
+            handleToolSelection('circle');
             event.preventDefault();
             break;
           case 'l':
-            setSelectedTool('line');
+            handleToolSelection('line');
             event.preventDefault();
             break;
           case 'a':
-            setSelectedTool('arrow');
+            handleToolSelection('arrow');
             event.preventDefault();
             break;
           case 'i':
@@ -516,20 +786,41 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTool, handleUndo, handleRedo, handleCopy, handlePaste, 
-      handleDuplicate, handleDeleteSelected, handleManualSave]);
+  }, [selectedTool, handleToolSelection, handleUndo, handleRedo, handleCopy, handlePaste,
+    handleDuplicate, handleDeleteSelected, handleManualSave]);
+
+  const handleShare = () => {
+    const roomId = Math.random().toString(36).substring(7);
+    const url = `${window.location.origin}?room=${roomId}`;
+    if (!collabRoomId) {
+      window.history.pushState({}, '', `?room=${roomId}`);
+      setCollabRoomId(roomId);
+      alert(`Collaboration session started! Share this URL:\n${url}`);
+    } else {
+      alert(`Already in a session! Share this URL:\n${window.location.href}`);
+    }
+  };
 
   return (
     <div className="App">
       <header className="app-header">
-        <div className="app-title-container">
+        <div className="app-heading">
           <h1 className="app-title">{APP_NAME}</h1>
-          <span className="app-subtitle">{APP_SUBTITLE}</span>
+          <p className="app-slogan">
+            <span className="app-subtitle-inline">{APP_SUBTITLE}</span>{' '}
+            <a href="https://github.com/sai-educ/TeachBound" target="_blank" rel="noopener noreferrer">Open source</a>, ad-free, and 100% free to use. {' '}
+            <a href="https://forms.gle/WShMfsvVaLc34QeaA" target="_blank" rel="noopener noreferrer">Please provide feedback or suggestions.</a>{' '}
+            Developed by <a href="https://www.gattupalli.com/" target="_blank" rel="noopener noreferrer">Sai Gattupalli, PhD</a>.
+          </p>
         </div>
-        <p className="app-slogan">
-          <a href="https://github.com/sai-educ/TeachBound" target="_blank" rel="noopener noreferrer">Open source</a>, ad-free, and 100% free to use. {' '}
-          <a href="https://forms.gle/WShMfsvVaLc34QeaA" target="_blank" rel="noopener noreferrer">Please provide feedback or suggestions!</a>
-        </p>
+        {collabRoomId && (
+          <div className="room-indicator">
+            <span className="room-id">Room: {collabRoomId}</span>
+            <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? '●' : '○'}
+            </span>
+          </div>
+        )}
       </header>
       <div
         className={`main-content-wrapper ${isDraggingFile ? 'dragging-file' : ''}`}
@@ -539,7 +830,7 @@ function App() {
       >
         <Toolbar
           selectedTool={selectedTool}
-          setSelectedTool={setSelectedTool}
+          setSelectedTool={handleToolSelection}
           strokeColor={strokeColor}
           setStrokeColor={setStrokeColor}
           fillColor={fillColor}
@@ -548,6 +839,8 @@ function App() {
           setLineWidth={setLineWidth}
           fontSize={fontSize}
           setFontSize={setFontSize}
+          textListType={textListType}
+          onTextListTypeChange={handleTextListTypeChange}
           stickyNoteColor={stickyNoteColor}
           setStickyNoteColor={setStickyNoteColor}
           toolbarDisplayMode={toolbarDisplayMode}
@@ -567,6 +860,7 @@ function App() {
           onClearSaved={handleClearSaved}
           hasClipboard={clipboard.length > 0}
           onImageUpload={handleImageUpload}
+          onShare={handleShare}
         />
         <Canvas
           ref={canvasRef}
@@ -575,6 +869,7 @@ function App() {
           fillColor={fillColor}
           lineWidth={lineWidth}
           fontSize={fontSize}
+          textListType={textListType}
           stickyNoteColor={stickyNoteColor}
           elements={elements}
           onDrawingOrElementComplete={handleDrawingOrElementComplete}
@@ -582,6 +877,9 @@ function App() {
           editingElementId={editingElement?.id}
           activateStickyNoteEditing={activateStickyNoteEditing}
           activateTextEditing={activateTextEditing}
+          onTextCanvasClickWhileEditing={handleTextCanvasClickWhileEditing}
+          onCursorMove={emitCursorMove}
+          remoteCursors={remoteCursors}
         />
       </div>
 
@@ -593,7 +891,7 @@ function App() {
             position: 'absolute',
             top: `${textAreaPosition.y}px`,
             left: `${textAreaPosition.x}px`,
-            width: editingElement.isText ? '300px' : '150px', 
+            width: editingElement.isText ? '300px' : '150px',
             height: editingElement.isText ? 'auto' : '100px',
             minHeight: editingElement.isText ? '30px' : '100px',
             fontSize: editingElement.isText ? `${fontSize}px` : '14px',
@@ -605,7 +903,7 @@ function App() {
           onKeyDown={handleTextAreaKeyDown}
         />
       )}
-      
+
       {/* Save Indicator */}
       {showSaveIndicator && (
         <div className="save-indicator">

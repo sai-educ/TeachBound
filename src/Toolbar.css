@@ -494,6 +494,18 @@
   font-size: 10px;
 }
 
+.text-list-selection {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.text-list-button {
+  min-width: auto;
+  justify-content: center;
+  padding: 4px 6px;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .main-toolbar {

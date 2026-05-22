@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm outdated *)",
+      "Bash(npm audit *)",
+      "Bash(BROWSER=none npm start)",
+      "Bash(lsof -nP -iTCP:3000 -sTCP:LISTEN)",
+      "Bash(lsof -nP -iTCP:1234 -sTCP:LISTEN)",
+      "Bash(npm ls *)",
+      "Bash(npm view *)",
+      "Bash(node -e \"console.log\\(typeof require\\('y-websocket/bin/utils'\\).setupWSConnection\\)\")",
+      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/Canvas.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('Canvas.js: OK'\\); require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/Toolbar.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('Toolbar.js: OK'\\); require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/App.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('App.js: OK'\\)\")",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"frontend: HTTP %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"collab:   HTTP %{http_code}\\\\n\" http://localhost:1234/)"
     ],
     "deny": [],
     "ask": []

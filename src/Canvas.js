@@ -45,7 +45,6 @@ const Canvas = forwardRef(({
   const mousePositionRef = useRef({ x: 0, y: 0 });
 
   // Image manipulation states
-  const [imageCache, setImageCache] = useState({}); // Cache loaded images
   const imageCacheRef = useRef({});
   const [resizingImage, setResizingImage] = useState(null); // { id, handle, startX, startY, startWidth, startHeight }
   const [rotatingImage, setRotatingImage] = useState(null); // { id, startAngle, startRotation }
@@ -298,7 +297,13 @@ const Canvas = forwardRef(({
       newMousePos.y !== mousePositionRef.current.y
     ) {
       mousePositionRef.current = newMousePos;
-      scheduleVisualUpdate({ mousePosition: newMousePos });
+      // Only push to React state (which triggers redraw) when something
+      // visible on the canvas actually depends on the mouse position —
+      // i.e. while previewing a live shape. Otherwise we read from the
+      // ref inside redrawAll and skip the redraw entirely.
+      if (shapeStartPoint && currentShape) {
+        scheduleVisualUpdate({ mousePosition: newMousePos });
+      }
     }
 
     // Emit cursor move (throttle to 50ms)
@@ -591,21 +596,24 @@ const Canvas = forwardRef(({
     const { x, y, width, height, rotation = 0, imageData, id } = { ...element, ...displayElement };
 
     // Get cached image or create new one
-    let img = imageCacheRef.current[id] ?? imageCache[id];
+    let img = imageCacheRef.current[id];
     if (!img || img.src !== imageData) {
       img = new window.Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        setImageCache(prev => ({ ...prev }));
+        // Redraw directly without going through React state — the image
+        // is already in the ref, and a state-driven re-render would
+        // cascade into every consumer of Canvas props.
+        if (contextRef.current) {
+          redrawAll(contextRef.current);
+        }
       };
       img.onerror = () => {
         console.error('Failed to load image in canvas:', id);
         // Still cache it to prevent repeated load attempts
-        imageCacheRef.current = { ...imageCacheRef.current, [id]: null };
-        setImageCache(prev => ({ ...prev, [id]: null }));
+        imageCacheRef.current[id] = null;
       };
-      imageCacheRef.current = { ...imageCacheRef.current, [id]: img };
-      setImageCache(prev => ({ ...prev, [id]: img }));
+      imageCacheRef.current[id] = img;
       img.src = imageData;
 
       // Draw placeholder while loading
@@ -941,10 +949,11 @@ const Canvas = forwardRef(({
 
     // Draw current live shape preview
     if (currentShape && shapeStartPoint) {
+      const livePos = mousePositionRef.current;
       context.save();
       context.globalCompositeOperation = 'source-over';
       drawShape(context, currentShape, shapeStartPoint.x, shapeStartPoint.y,
-        mousePosition.x, mousePosition.y, { strokeColor, fillColor, lineWidth });
+        livePos.x, livePos.y, { strokeColor, fillColor, lineWidth });
       context.restore();
     }
 
@@ -999,7 +1008,8 @@ const Canvas = forwardRef(({
     const textWidthDim = context.measureText(dimText).width;
     context.fillText(dimText, canvasWidth - textWidthDim - 5, canvasHeight - 15);
 
-    const coordText = `x: ${mousePosition.x}, y: ${mousePosition.y}`;
+    const livePos = mousePositionRef.current;
+    const coordText = `x: ${livePos.x}, y: ${livePos.y}`;
     context.fillText(coordText, 5, canvasHeight - 15);
     context.restore();
   };
@@ -1050,10 +1060,10 @@ const Canvas = forwardRef(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     elements, isResizingCanvas, editingElementId, selectedElements,
-    currentShape, mousePosition, shapeStartPoint, selectionRect, isSelecting,
+    currentShape, shapeStartPoint, selectionRect, isSelecting,
     strokeColor, fillColor, lineWidth, fontSize, stickyNoteColor,
-    currentPath, isDrawing, selectedTool, draggedElementsPositions, imageCache,
-    remoteCursors
+    currentPath, isDrawing, selectedTool, draggedElementsPositions,
+    mousePosition, remoteCursors
   ]);
 
   // Check if point is on an image handle (for resize/rotate)
